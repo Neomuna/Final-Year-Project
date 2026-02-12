@@ -1,3 +1,4 @@
+"""
 from gpiozero import DigitalInputDevice
 from signal import pause
 
@@ -17,3 +18,29 @@ sensor.when_deactivated = gas_cleared
 
 print("MQ-7 Monitoring Active. Press Ctrl+C to stop.")
 pause()
+"""
+
+import RPi.GPIO as GPIO # This now uses rpi-lgpio under the hood
+import time
+
+# Use BCM numbering (GPIO 17)
+GPIO.setmode(GPIO.BCM)
+
+SENSOR_PIN = 17
+# Set as input. We often use a pull-up to keep the signal steady.
+GPIO.setup(SENSOR_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+
+print("MQ-7 Sensor Initialized. Waiting for stable reading...")
+
+try:
+    while True:
+        if GPIO.input(SENSOR_PIN) == GPIO.LOW:
+            print("CO Detected!")
+        else:
+            print("All clear")
+            
+        time.sleep(1) 
+
+except KeyboardInterrupt:
+    print("\nCleaning up...")
+    GPIO.cleanup()
