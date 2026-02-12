@@ -14,38 +14,51 @@
 #pip show flask-sqlalchemy
 
 
-
 from flask import Flask, request, jsonify, render_template
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, timezone 
 
 app = Flask(__name__) # Initialise Flask app
 
+
 #  Database Config 
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:@86.17.112.152/Final_Year_Project' # My Macs IP address 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False  # To suppress warning
 
+# Added home route for testing due to issues with Flask server starting
+@app.get("/") # Home route
+def home(): # Home route
+    try:
+        readings = SensorReading.query.order_by(SensorReading.timestamp.desc()).limit(50).all() # Get latest 50 sensor readings
+    except Exception as e:
+        readings = [] # Return empty list if database connection fails
+    return render_template("index.html", readings=readings) # Render sensor dashboard template   
+
+
 db = SQLAlchemy(app) # Initialise SQLAlchemy
 
 # Generic database helper to save an object
-def save(obj):
-    db.session.add(obj)
-    db.session.commit()
+def save(obj): # Save object to database
+    try: # Try to save object
+        db.session.add(obj) # Add object to session
+        db.session.commit() # Commit session to database
+    except Exception as e: # If error occurs
+        db.session.rollback() # Rollback session
+        return jsonify({"error": str(e)}), 500 # Return error response
 
-# Generic helpers 
-def get_json():
-    data = request.get_json()
-    if not data:
-        return None, (jsonify({"error": "Invalid JSON"}), 400)
-    return data, None
+# Generic helper to get JSON data from request
+def get_json(): # Get JSON data from request
+    data = request.get_json() # Get JSON data
+    if not data: 
+        return None, (jsonify({"error": "Invalid JSON"}), 400) # Return error if no data
+    return data, None  
 
 # Generic helper to get latest entry from a model
-def get_latest(model, order_field, error_msg):
-    obj = model.query.order_by(order_field.desc()).first()
+def get_latest(model, order_field, error_msg): # Get latest entry from model
+    obj = model.query.order_by(order_field.desc()).first() # Query latest entry
     if not obj:
-        return None, (jsonify({"error": error_msg}), 404)
-    return obj, None
-
+        return None, (jsonify({"error": error_msg}), 404) # Return error if no entry found
+    return obj, None 
 
 
 # SQLAlchemy Models 
@@ -60,9 +73,9 @@ class SensorReading(db.Model): # Sensor Reading Model
     CO_Reading = db.Column(db.Float) # CO level reading
     movement = db.Column(db.Boolean) # True/False for movement detected or not 
 
-    def to_dict(self):
-        return {
-            "reading_id": self.reading_id,
+    def to_dict(self): # Convert reading to dictionary
+        return { 
+            "reading_id": self.reading_id, 
             "Pi_ID": self.Pi_ID,
             "timestamp": self.timestamp.isoformat(),
             "Temperature": self.Temperature,
@@ -103,7 +116,7 @@ class Alerts(db.Model): # Alerts Model
     Message_Alert = db.Column(db.String(255)) # Alert message
     Alerts_Timestamp = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc)) # Timestamp of the alert
 
-    def to_dict(self):
+    def to_dict(self): # Convert alert to dictionary
         return {
             "Alert_ID": self.Alert_ID,
             "Pi_ID": self.Pi_ID,
@@ -120,7 +133,7 @@ class Location (db.Model): # Location Model
     Building = db.Column(db.String(255)) # Building location 
     Roomname = db.Column(db.String(255)) # Name of room 
 
-    def to_dict(self):     
+    def to_dict(self):  # Convert location to dictionary
         return {
             "Location_ID": self.Location_ID,
             "Building": self.Building,
@@ -159,7 +172,9 @@ def latest_sensor(): # Get latest sensor reading from database
 # App route for Location 
 @app.post("/api/upload/location") # Route to upload location
 def upload_location(): # Upload location to database
-    data = request.json # Get JSON data from request
+    data, error = get_json() # Get JSON data from request
+    if error: 
+        return error
 
     location = Location( # Create new Location object
         Location_ID=data.get("Location_ID"),   # Unique ID for location
@@ -167,9 +182,7 @@ def upload_location(): # Upload location to database
         Roomname=data.get("Roomname") # Name of room
     )
 
-    db.session.add(location) # Add location to session
-    db.session.commit() # Commit session to database
-
+    save(location) # Save location to database
     return jsonify({"status": "location added"}), 201  # Return success response
 
 @app.get("/api/latest/location") # Route to get latest location
@@ -187,17 +200,17 @@ def latest_location(): # Get latest location from database
 # Route for Raspberry Pi 
 @app.post("/api/upload/pi") # Route to upload Raspberry Pi info
 def upload_pi(): # Upload Raspberry Pi info to database
-    data = request.json # Get JSON data from request
+    data, error = get_json() # Get JSON data from request
+    if error:
+        return error 
+
 
     pi = Raspberry_Pi( # Create new Raspberry_Pi object
         Pi_ID=data.get("Pi_ID"), # Unique ID for Raspberry Pi
         Location_ID=data.get("Location_ID"), # Foreign key to Location
         IP_Address=data.get("IP_Address"), # IP Address of the Pi
-        Last_Used_Timestamp=datetime.now(timezone.utc) # Last used timestamp
     )
-    db.session.add(pi) # Add Raspberry Pi to session
-    db.session.commit() # Commit session to database
-
+    save(pi) # Save Raspberry Pi info to database
     return jsonify({"status": "pi registered"}), 201  # Return success response
 
 @app.get("/api/latest/pi") # Route to get latest Raspberry Pi info
@@ -216,33 +229,31 @@ def latest_pi(): # Get latest Raspberry Pi info from database
 # Route for Alerts 
 @app.post("/api/upload/alert") # Route to upload alert
 def upload_alert(): # Upload alert to database
-    data = request.json # Get JSON data from request
+    data, error = get_json() # Get JSON data from request
+    if error: 
+        return error
 
-    alert = Alerts(  # Create new Alerts object
+    alert = Alerts( # Create new Alerts object
         Pi_ID=data.get("Pi_ID"), # ID of the Pi generating the alert
         Threshold=data.get("Threshold"), # Threshold value that triggered the alert
         Motion=data.get("Motion"), # Used for test sensor alongside movement
         Message_Alert=data.get("Message_Alert") # Alert message
     )
-    db.session.add(alert) # Add alert to session
-    db.session.commit() # Commit session to database
 
+    save(alert) # Save alert to database
     return jsonify({"status": "alert added"}), 201 # Return success response
 
 @app.get("/api/latest/alert") # Route to get latest alert
 def latest_alert(): # Get latest alert from database
-    alerts = Alerts.query.order_by(Alerts.Alerts_Timestamp.desc()).first() # Query latest alert 
-    if not alerts: # If no alert found
-        return jsonify({"error": "No alerts found"}), 404 # Return error response
+    alert, error = get_latest( 
+        Alerts, 
+        Alerts.Alerts_Timestamp, 
+        "No alerts found" 
+    )
+    if error: 
+        return error
 
-    return jsonify({ # Return latest alert as JSON
-        "Alert_ID": alerts.Alert_ID, # Unique ID for each alert
-        "Pi_ID": alerts.Pi_ID, # ID of the Pi generating the alert
-        "Threshold": alerts.Threshold,  # Threshold value that triggered the alert
-        "Motion": alerts.Motion, # Used for test sensor alongside movement 
-        "Message_Alert": alerts.Message_Alert, # Alert message
-        "Alerts_Timestamp": alerts.Alerts_Timestamp.isoformat() # Timestamp of the alert
-    })
+    return jsonify(alert.to_dict()) # Return latest alert as JSON
 
 # Dashboard route to view sensor readings on a web page 
 @app.get("/dashboard/sensors") # Route to view sensor readings dashboard
@@ -252,8 +263,7 @@ def dashboard_sensors(): # View sensor readings dashboard
 
 # Run the program
 if __name__ == "__main__": # Main program
-    app.run(host="192.168.0.182", port=5000) # PI IP address at home
-    # app.run(host="0.0.0.0", port=5000) # use instead when deploying to the Pi
+    app.run(host="0.0.0.0", port=5000) # use instead when deploying to the Pi
 
 # Refrences: 
 # https://www.youtube.com/watch?v=hQl2wyJvK5k 
@@ -269,7 +279,12 @@ if __name__ == "__main__": # Main program
 # Add all database entries + keys - tick
 # Add reading much like i did with SensorReading() - tick
 # Finish ERD diagram  - need to improve a few areas 
-# Need to look over where I can include keys 
+# Need to look over where I can include keys - tick 
+# Test all routes with Postman - tick
+# Create dashboard to view readings 
+# Deploy on Raspberry Pi - tick
+# Write documentation for code - in progress
+# Finishing refactoring code - in progress
 # Stay clam - ish 
 # Test with script on Pi 
 # Profit
