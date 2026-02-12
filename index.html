@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sensor Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .readings-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+
+        .reading-card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .reading-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .reading-card .timestamp {
+            font-size: 0.9em;
+            color: #999;
+            margin-bottom: 15px;
+            font-weight: 500;
+        }
+
+        .sensor-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .sensor-row:last-child {
+            border-bottom: none;
+        }
+
+        .sensor-label {
+            font-weight: 600;
+            color: #333;
+            font-size: 0.95em;
+        }
+
+        .sensor-value {
+            font-size: 1.4em;
+            font-weight: 700;
+            color: #667eea;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .sensor-value.temp {
+            color: #ff6b6b;
+        }
+
+        .sensor-value.humidity {
+            color: #4dabf7;
+        }
+
+        .sensor-value.co2 {
+            color: #fd7e14;
+        }
+
+        .sensor-value.co {
+            color: #a61e4d;
+        }
+
+        .sensor-value.movement {
+            color: #51cf66;
+        }
+
+        .movement-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+
+        .movement-badge.detected {
+            background-color: #ffdeea;
+            color: #a61e4d;
+        }
+
+        .movement-badge.not-detected {
+            background-color: #e7f5ff;
+            color: #004085;
+        }
+
+        .pi-info {
+            background-color: #f8f9fa;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 0.85em;
+            color: #666;
+            margin-top: 15px;
+            text-align: center;
+        }
+
+        .no-readings {
+            grid-column: 1 / -1;
+            text-align: center;
+            color: white;
+            padding: 40px;
+            font-size: 1.2em;
+        }
+
+        .unit {
+            font-size: 0.85em;
+            opacity: 0.8;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 1.8em;
+            }
+
+            .readings-grid {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+
+            .sensor-value {
+                font-size: 1.2em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Sensor Dashboard</h1>
+            <p>Real-time Environmental Monitoring</p>
+        </div>
+
+        {% if readings %}
+        <div class="readings-grid">
+            {% for r in readings %}
+            <div class="reading-card">
+                <div class="timestamp">
+                    {{ r.timestamp.strftime('%B %d, %Y - %H:%M:%S') if r.timestamp else 'N/A' }}
+                </div>
+
+                <div class="sensor-row">
+                    <span class="sensor-label">Temperature</span>
+                    <span class="sensor-value temp">
+                        {{ r.Temperature if r.Temperature is not none else 'N/A' }}
+                        <span class="unit">°C</span>
+                    </span>
+                </div>
+
+                <div class="sensor-row">
+                    <span class="sensor-label">Humidity</span>
+                    <span class="sensor-value humidity">
+                        {{ r.Humidity if r.Humidity is not none else 'N/A' }}
+                        <span class="unit">%</span>
+                    </span>
+                </div>
+
+                <div class="sensor-row">
+                    <span class="sensor-label">CO₂ Level</span>
+                    <span class="sensor-value co2">
+                        {{ r.CO2_reading if r.CO2_reading is not none else 'N/A' }}
+                        <span class="unit">ppm</span>
+                    </span>
+                </div>
+
+                <div class="sensor-row">
+                    <span class="sensor-label">CO Level</span>
+                    <span class="sensor-value co">
+                        {{ r.CO_Reading if r.CO_Reading is not none else 'N/A' }}
+                        <span class="unit">ppm</span>
+                    </span>
+                </div>
+
+                <div class="sensor-row">
+                    <span class="sensor-label">Movement</span>
+                    <span class="sensor-value movement">
+                        {% if r.movement %}
+                            <span class="movement-badge detected">Detected</span>
+                        {% else %}
+                            <span class="movement-badge not-detected">No Movement</span>
+                        {% endif %}
+                    </span>
+                </div>
+
+                {% if r.pi %}
+                <div class="pi-info">
+                    Raspberry Pi ID: {{ r.Pi_ID }}
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="no-readings">
+            No sensor readings available yet
+        </div>
+        {% endif %}
+    </div>
+</body>
+</html>
