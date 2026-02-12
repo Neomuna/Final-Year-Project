@@ -1,28 +1,19 @@
-# MQ7 code
+from gpiozero import DigitalInputDevice
+from signal import pause
 
-# pip installs below 
-"""
-sudo apt update
-sudo apt install python3-lgpio
-""" 
+# 'pull_up=True' and 'active_state=False' 
+# tells the Pi that 0V means "Active/Alarm"
+sensor = DigitalInputDevice(17, pull_up=True, active_state=False)
 
+def gas_detected():
+    print("Warning! Carbon monoxide detected!")
 
-import lgpio
-import time
+def gas_cleared():
+    print("Air is clear. You're safe!")
 
-# Pi 5 GPIO 17
-PIN = 17
-h = lgpio.gpiochip_open(0)
+#Set up event handlers for the sensor
+sensor.when_activated = gas_detected
+sensor.when_deactivated = gas_cleared
 
-# Input and ensure the Pi's internal pull-up is off since we are providing the voltage via the sensor
-lgpio.gpio_claim_input(h, PIN)
-
-try:
-    print("Pi 5 Monitoring MQ-7...")
-    while True:
-        level = lgpio.gpio_read(h, PIN)
-        if level == 0:
-            print("CO Detected!")
-        time.sleep(0.5)
-finally:
-    lgpio.gpiochip_close(h)
+print("MQ-7 Monitoring Active. Press Ctrl+C to stop.")
+pause()
