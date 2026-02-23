@@ -245,14 +245,9 @@ def upload_alert(): # Upload alert to database
 
 @app.get("/api/latest/alert") # Route to get latest alert
 def latest_alert(): # Get latest alert from database
-    alert, error = get_latest( 
-        Alerts, 
-        Alerts.Alerts_Timestamp, 
-        "No alerts found" 
-    )
+    alert, error = get_latest( Alerts, Alerts.Alerts_Timestamp, "No alerts found" ) # Get latest alert
     if error: 
         return error
-
     return jsonify(alert.to_dict()) # Return latest alert as JSON
 
 # Dashboard route to view sensor readings on a web page 
