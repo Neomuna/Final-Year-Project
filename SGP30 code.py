@@ -1,37 +1,17 @@
 # SGP30 code
-
-# Code copied and acquired from: https://learn.adafruit.com/adafruit-sgp30-gas-tvoc-eco2-mox-sensor/circuitpython-wiring-test
-
-# SPDX-FileCopyrightText: 2021 ladyada for Adafruit Industries
-# SPDX-License-Identifier: MIT
-
-"""Example for using the SGP30 with CircuitPython and the Adafruit library"""
-
 import time
+from sgp30 import SGP30
+from smbus import SMBus 
+ssmbus = SMBus(1) # I2C bus 1
 
-import board
-import busio
 
-import adafruit_sgp30
+with SGP30(ssmbus) as sgp30:
+    while True:
+        aq = sgp30.air_quality()
+        V = aq.voc_ppb 
+        C = aq.co2_ppm
 
-i2c = busio.I2C(board.SCL, board.SDA, frequency=100000)
+        print(V,C)
+        time.sleep(1) 
 
-# Create library object on our I2C port
-sgp30 = adafruit_sgp30.Adafruit_SGP30(i2c)
 
-print("SGP30 serial #", [hex(i) for i in sgp30.serial])
-
-sgp30.set_iaq_baseline(0x8973, 0x8AAE)
-sgp30.set_iaq_relative_humidity(celsius=22.1, relative_humidity=44)
-
-elapsed_sec = 0
-
-while True:
-    print(f"eCO2 = {sgp30.eCO2} ppm \t TVOC = {sgp30.TVOC} ppb")
-    time.sleep(1)
-    elapsed_sec += 1
-    if elapsed_sec > 10:
-        elapsed_sec = 0
-        print(
-            f"**** Baseline values: eCO2 = 0x{sgp30.baseline_eCO2:x}, TVOC = 0x{sgp30.baseline_TVOC:x}"  # noqa: E501
-        )
