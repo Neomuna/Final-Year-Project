@@ -55,7 +55,7 @@ while True:
         print(f"eCO2: {eco2} ppm")
         print(f"TVOC (SGP30): {tvoc_sgp30} ppb")
         print(f"TVOC Raw (SGP40): {tvoc_raw}")
-        print(f"CO (MQ-7): {co_level}")
+        print(f"CO (MQ-7): {mq7_status}")
 
     except RuntimeError as error:
         print("Sensor error:", error)
