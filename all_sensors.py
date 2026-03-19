@@ -7,119 +7,169 @@ import adafruit_sht4x
 from gpiozero import DigitalInputDevice
 from sgp30 import SGP30
 from smbus import SMBus
+from typing import Optional 
 
-# SETUP
+"""Features following Python style guide and includes docstrings for all classes and methods.
+This code is designed to be modular and extensible, allowing for easy addition of new sensors in the future."""
+class Sensor:
+    """Base class for all sensors."""
 
-# UART (TVOC)
-ser = serial.Serial(
-    port='/dev/serial10',
-    baudrate=9600,
-    bytesize=8,
-    parity='N',
-    stopbits=1,
-    timeout=1
-)
+    def read(self) -> None:
+        """Read data from the sensor."""
+        raise NotImplementedError
 
-READ_TVOC = bytes([0x01, 0x03, 0x00, 0x00, 0x00, 0x00, 0x01, 0x84, 0x0A]) 
-
-# DHT22
-dht = adafruit_dht.DHT22(board.D4)
-
-# MQ-7 (Digital)
-mq7 = DigitalInputDevice(17, pull_up=True, active_state=False)
-
-# SGP30
-i2c_bus = SMBus(1)
-sgp30 = SGP30(i2c_bus)
-
-# SHT45
-i2c = board.I2C()
-sht = adafruit_sht4x.SHT45(i2c)
-sht.mode = adafruit_sht4x.Mode.HIGH
+    def display(self) -> None:
+        """Display sensor data."""
+        raise NotImplementedError
 
 
-# SENSOR FUNCTIONS
+class TVOCSensor(Sensor):
+    """TVOC sensor using UART communication."""
 
-def read_tvoc():
-    try:
-        ser.write(READ_TVOC)
-        time.sleep(0.1)
-        data = ser.read(7)
+    def __init__(self, port: str = "/dev/serial10") -> None:
+        self.serial = serial.Serial(
+            port = port,
+            baudrate = 9600,
+            bytesize = 8,
+            parity = "N",
+            stopbits = 1,
+            timeout = 1,
+        )
+        self.command = bytes([0x01, 0x03, 0x00, 0x00, 0x00, 0x00, 0x01, 0x84, 0x0A])
+        self.value: Optional[int] = None
 
-        if len(data) != 7:
-            return None
+    def read(self) -> None:
+        """Fetch TVOC value from sensor."""
+        try:
+            self.serial.write(self.command)
+            time.sleep(0.1)
 
-        tvoc = (data[3] << 8) | data[4]
-        return tvoc
-    except:
-        return None
+            data = self.serial.read(7)
+            if len(data) == 7:
+                self.value = (data[3] << 8) | data[4]
+            else:
+                self.value = None
+
+        except serial.SerialException:
+            self.value = None
+
+    def display(self) -> None:
+        # Print TVOC reading.
+        if self.value is not None:
+            print(f"TVOC: {self.value} ppb")
+        else:
+            print("TVOC: No data")
+
+class DHT22Sensor(Sensor): # DHT22 Temperature and Humidity Sensor
+    def __init__(self):
+        self.sensor = adafruit_dht.DHT22(board.D4) # Initialise DHT22 sensor on GPIO4
+        self.temp = None # Store the latest temperature value
+        self.hum = None # Store the latest humidity value
+
+    def read(self): # Read temperature and humidity from DHT22 sensor
+        try:
+            self.temp = self.sensor.temperature # Read temperature in Celsius
+            self.hum = self.sensor.humidity # Read relative humidity in percentage
+        except RuntimeError:
+            self.temp, self.hum = None, None # Handle read errors gracefully
+
+    def display(self): # Display the temperature and humidity values
+        if self.temp is not None:
+            print(f"DHT22 Temp: {self.temp:.2f} °C | Humidity: {self.hum:.2f}%") # Display temperature and humidity with 2 decimal places
+        else:
+            print("DHT22: Error") 
 
 
-def read_dht22():
-    try:
-        return dht.temperature, dht.humidity
-    except RuntimeError:
-        return None, None
+class MQ7Sensor(Sensor): # MQ-7 Carbon Monoxide Sensor (Digital Output) - I don't have access to a ADC converter. This is mentioned in the report. 
+    def __init__(self):
+        self.sensor = DigitalInputDevice(17, pull_up=True, active_state=False)  # Initialise MQ-7 sensor on GPIO17 with pull-up resistor and active low signal
+        self.detected = False
+
+    def read(self):
+        self.detected = self.sensor.is_active # Read the digital output from MQ-7 sensor (True if CO detected, False if air is safe)
+
+    def display(self): # Display the status of carbon monoxide detection
+        if self.detected:
+            print("Carbon Monoxide Detected!")
+        else:
+            print("MQ-7: Air safe")
 
 
-def read_mq7():
-    return mq7.is_active  # True = gas detected
+class SGP30Sensor(Sensor): # SGP30 Air Quality Sensor (I2C)
+    def __init__(self): # Initialise I2C connection and SGP30 sensor
+        self.bus = SMBus(1) # Use I2C bus 1 on Raspberry Pi
+        self.sensor = SGP30(self.bus) # Initialize SGP30 sensor
+        self.voc = None # Store the latest VOC value in parts per billion
+        self.co2 = None # Store the latest CO2 value in parts per million
+
+    def read(self): # Read VOC and CO2 values from SGP30 sensor
+        try:
+            aq = self.sensor.air_quality() # Get air quality readings (VOC in ppb and CO2 in ppm)
+            self.voc = aq.voc_ppb # Store VOC value in parts per billion
+            self.co2 = aq.co2_ppm # Store CO2 value in parts per million
+        except:
+            self.voc, self.co2 = None, None # Handle read errors gracefully
+
+    def display(self): # Display the VOC and CO2 values from SGP30 sensor
+        if self.voc is not None:
+            print(f"SGP30 VOC: {self.voc} ppb | CO2: {self.co2} ppm") # Display VOC in parts per billion and CO2 in parts per million
+        else:
+            print("SGP30: Error")
 
 
-def read_sgp30():
-    try:
-        aq = sgp30.air_quality()
-        return aq.voc_ppb, aq.co2_ppm
-    except:
-        return None, None
+class SHT45Sensor(Sensor): # SHT45 Temperature and Humidity Sensor (I2C)
+    def __init__(self): # Initialise I2C connection and SHT45 sensor
+        self.i2c = board.I2C() # Use default I2C bus on Raspberry Pi
+        self.sensor = adafruit_sht4x.SHT45(self.i2c) # Initialise SHT45 sensor
+        self.sensor.mode = adafruit_sht4x.Mode.HIGH # Set SHT45 to high precision mode
+        self.temp = None
+        self.hum = None
+
+    def read(self):
+        try:
+            self.temp = self.sensor.temperature # Read temperature in Celsius from SHT45 sensor
+            self.hum = self.sensor.relative_humidity # Read relative humidity in percentage from SHT45 sensor
+        except:
+            self.temp, self.hum = None, None # Handle read errors gracefully
+
+    def display(self): # Display the temperature and humidity values from SHT45 sensor
+        if self.temp is not None:
+            print(f"SHT45 Temp: {self.temp:.2f} °C | Humidity: {self.hum:.2f}%") # Display temperature and humidity with 2 decimal places
+        else:
+            print("SHT45: Error")
 
 
-def read_sht45():
-    try:
-        return sht.temperature, sht.relative_humidity
-    except:
-        return None, None
+
+# Sensor Manager
+
+class SensorManager: # Manages multiple sensors and coordinates reading and displaying their data
+    def __init__(self):
+        self.sensors = []
+
+    def add_sensor(self, sensor):
+        self.sensors.append(sensor)
+
+    # Note to self - test this method to ensure it works as expected. I haven't tested it yet.
+    def run(self):
+        print("Starting Sensor System")
+        while True:
+            for sensor in self.sensors:
+                sensor.read()
+                sensor.display()
+
+            print("-" * 40)
+            time.sleep(2)
 
 
-# MAIN LOOP
+# Main Program
 
-print("Starting unified sensor system...\n")
+if __name__ == "__main__": # Create sensor manager and add all sensors to it, then start the system
+    manager = SensorManager()
 
-while True:
-    # TVOC
-    tvoc = read_tvoc()
-    if tvoc is not None:
-        print(f"TVOC: {tvoc} ppb")
-    else:
-        print("TVOC: No data")
+    manager.add_sensor(TVOCSensor())
+    manager.add_sensor(DHT22Sensor())
+    manager.add_sensor(MQ7Sensor())
+    manager.add_sensor(SGP30Sensor())
+    manager.add_sensor(SHT45Sensor())
 
-    # DHT22
-    temp, hum = read_dht22()
-    if temp is not None:
-        print(f"DHT22 Temp: {temp:.2f} °C | Humidity: {hum:.2f}%")
-    else:
-        print("DHT22: Error reading")
-
-    # MQ-7
-    if read_mq7():
-        print("Carbon Monoxide Detected!")
-    else:
-        print("Air safe")
-
-    # SGP30 
-    voc, co2 = read_sgp30()
-    if voc is not None:
-        print(f"SGP30 VOC: {voc} ppb | CO2: {co2} ppm")
-    else:
-        print("SGP30: Error")
-
-    # SHT45 
-    t2, h2 = read_sht45()
-    if t2 is not None:
-        print(f"SHT45 Temp: {t2:.2f} °C | Humidity: {h2:.2f}%")
-    else:
-        print("SHT45: Error")
-
-    print("-" * 40)
-
-    time.sleep(2)
+    manager.run() 
