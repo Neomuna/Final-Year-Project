@@ -1,31 +1,37 @@
-
-# TVOC sensor (SGP40)
+import serial
 import time
-import board
-import busio
-import adafruit_sgp40
-import adafruit_dht
 
-# I2C setup
-i2c = busio.I2C(board.SCL, board.SDA)
-sgp = adafruit_sgp40.SGP40(i2c)
+# Open UART port on Pi 
+ser = serial.Serial(
+    port = '/dev/serial10',
+    baudrate = 9600,
+    bytesize = 8,
+    parity = 'N',
+    stopbits = 1,
+    timeout = 1 
+)
 
-# DHT22 setup
-dht = adafruit_dht.DHT22(board.D4)
+# Waveshare TVOC UART query
+READ_TVOC =bytes([0x01, 0x03, 0x00, 0x00, 0x00, 0x00, 0x01, 0x84, 0x0A])
+
+def read_tvoc():
+    ser.write(READ_TVOC)
+    time.sleep(0.1)
+    data = ser.read(7) # Expect exactly 7 bytes
+
+    if len(data) !=7:
+        return None
+
+    # Parse response 
+    high = data[3]
+    low = data[4]
+    tvoc = (high << 8) | low
+    return tvoc 
 
 while True:
-    try:
-        temperature = dht.temperature
-        humidity = dht.humidity
-
-        voc_index = sgp.measure_index(temperature=temperature, relative_humidity=humidity)
-
-        print("Temperature:", temperature)
-        print("Humidity:", humidity)
-        print("VOC Index:", voc_index)
-        print("------------------")
-
-    except RuntimeError:
-        pass
-
-    time.sleep(2)
+    value = read_tvoc()
+    if value is not None:
+        print("TVOC:", value, "ppb")
+    else: 
+        print("No data is being received")
+    time.sleep(1) 
