@@ -20,6 +20,8 @@ from datetime import datetime, timezone
 
 app = Flask(__name__) # Initialise Flask app
 
+db = SQLAlchemy(app) # Initialise SQLAlchemy
+
 
 #  Database Config 
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:@86.17.112.152/Final_Year_Project' # My Macs IP address 
@@ -35,9 +37,7 @@ def home(): # Home route
     return render_template("index.html", readings=readings) # Render sensor dashboard template   
 
 
-db = SQLAlchemy(app) # Initialise SQLAlchemy
-
-# Generic database helper to save an object
+# Database helper to save an object
 def save(obj): # Save object to database
     try: # Try to save object
         db.session.add(obj) # Add object to session
@@ -46,19 +46,26 @@ def save(obj): # Save object to database
         db.session.rollback() # Rollback session
         return jsonify({"error": str(e)}), 500 # Return error response
 
-# Generic helper to get JSON data from request
+# Helper to get JSON data from request
 def get_json(): # Get JSON data from request
     data = request.get_json() # Get JSON data
     if not data: 
         return None, (jsonify({"error": "Invalid JSON"}), 400) # Return error if no data
     return data, None  
 
-# Generic helper to get latest entry from a model
+# Helper to get latest entry from a model
 def get_latest(model, order_field, error_msg): # Get latest entry from model
     obj = model.query.order_by(order_field.desc()).first() # Query latest entry
     if not obj:
         return None, (jsonify({"error": error_msg}), 404) # Return error if no entry found
     return obj, None 
+
+# Helper to validate required fields in JSON data
+def validate_fields(data, required_fields):
+    missing = [field for field in required_fields if data.get(field) is None]
+    if missing:
+        return jsonify({"error": f"Missing fields: {', '.join(missing)}"}), 400
+    return None
 
 
 # SQLAlchemy Models 
@@ -141,23 +148,23 @@ class Location (db.Model): # Location Model
         }
 
 # App route for Sensor Reading
-@app.post("/api/upload/sensor") # Route to upload sensor reading
-def upload_sensor(): # Upload sensor reading to database
-    data, error = get_json() # Get JSON data from request
-    if error: 
+@app.post("/api/upload/sensor")
+def upload_sensor():
+    data, error = get_json()
+    if error:
         return error
 
-    reading = SensorReading( # Create new SensorReading object
-        Pi_ID=data.get("Pi_ID"), # Foreign key to Raspberry Pi
-        Temperature=data.get("Temperature"), # Temperature reading
-        Humidity=data.get("Humidity"),  # Humidity reading
-        CO2_reading=data.get("CO2_reading"), # CO2 level reading
-        CO_Reading=data.get("CO_Reading"), # CO level reading
-        movement=data.get("movement") # Movement detected or not
+    reading = SensorReading(
+        Pi_ID=data.get("Pi_ID"),
+        Temperature=data.get("Temperature"),
+        Humidity=data.get("Humidity"),
+        CO2_reading=data.get("CO2_reading"),
+        CO_Reading=data.get("CO_Reading"),
+        movement=data.get("movement")
     )
- 
-    save(reading) # Save reading to database
-    return jsonify({"status": "sensor reading added"}), 201 # Return success response
+    err = save(reading)       # Call save, catch any error it returns
+    if err: return err        # If save failed, return the error
+    return jsonify({"status": "sensor reading added"}), 201  # only reaches here if save worked
 
 
 @app.get("/api/latest/sensor") # Route to get latest sensor reading
@@ -201,6 +208,7 @@ def latest_location(): # Get latest location from database
 @app.post("/api/upload/pi") # Route to upload Raspberry Pi info
 def upload_pi(): # Upload Raspberry Pi info to database
     data, error = get_json() # Get JSON data from request
+    error = validate_fields(data, ["Pi_ID", "Location_ID", "IP_Address"]) # Validate required fields
     if error:
         return error 
 
@@ -230,7 +238,8 @@ def latest_pi(): # Get latest Raspberry Pi info from database
 @app.post("/api/upload/alert") # Route to upload alert
 def upload_alert(): # Upload alert to database
     data, error = get_json() # Get JSON data from request
-    if error: 
+    error = validate_fields(data, ["Pi_ID", "Message_Alert"]) # Validate fields required for an alert
+    if error:
         return error
 
     alert = Alerts( # Create new Alerts object
@@ -276,10 +285,11 @@ if __name__ == "__main__": # Main program
 # Finish ERD diagram  - need to improve a few areas 
 # Need to look over where I can include keys - tick 
 # Test all routes with Postman - tick
-# Create dashboard to view readings 
+# Create dashboard to view readings - tick
 # Deploy on Raspberry Pi - tick
-# Write documentation for code - in progress
+# Write documentation for code - tick
 # Finishing refactoring code - in progress
 # Stay clam - ish 
-# Test with script on Pi 
+# Test with script on Pi - tick
+# 
 # Profit
