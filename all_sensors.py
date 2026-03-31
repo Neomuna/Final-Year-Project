@@ -26,7 +26,7 @@ class Sensor:
 class TVOCSensor(Sensor):
     """TVOC sensor using UART communication."""
 
-    def __init__(self, port: str = "/dev/serial10") -> None:
+    def __init__(self, port: str = "/dev/ttyAMA0") -> None:
         self.serial = serial.Serial(
             port = port,
             baudrate = 9600,
@@ -62,7 +62,7 @@ class TVOCSensor(Sensor):
 
 class DHT22Sensor(Sensor): # DHT22 Temperature and Humidity Sensor
     def __init__(self):
-        self.sensor = adafruit_dht.DHT22(board.D4) # Initialise DHT22 sensor on GPIO4
+        self.sensor = adafruit_dht.DHT22(board.D17) # Initialise DHT22 sensor on GPIO4
         self.temp = None # Store the latest temperature value
         self.hum = None # Store the latest humidity value
 
@@ -82,7 +82,7 @@ class DHT22Sensor(Sensor): # DHT22 Temperature and Humidity Sensor
 
 class MQ7Sensor(Sensor): # MQ-7 Carbon Monoxide Sensor (Digital Output) - I don't have access to a ADC converter. This is mentioned in the report. 
     def __init__(self):
-        self.sensor = DigitalInputDevice(17, pull_up=True, active_state=False)  # Initialise MQ-7 sensor on GPIO17 with pull-up resistor and active low signal
+        self.sensor = DigitalInputDevice(23, pull_up=True, active_state=False)  # Initialise MQ-7 sensor on GPIO17 with pull-up resistor and active low signal
         self.detected = False
 
     def read(self):
@@ -163,7 +163,7 @@ class SensorManager: # Manages multiple sensors and coordinates reading and disp
 
 # Main Program
 
-if __name__ == "__main__": # Create sensor manager and add all sensors to it, then start the system
+if __name__ == "__main__": # Create sensor manager and add all sensors to it, then run the program
     manager = SensorManager()
 
     manager.add_sensor(TVOCSensor())
