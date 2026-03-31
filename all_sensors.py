@@ -159,21 +159,60 @@ class SensorManager: # Manages multiple sensors and coordinates reading and disp
             print("-" * 40)
             time.sleep(2)
 
-class AirSensor: # Class to check air quality based on sensor readings and predefined thresholds [1],[2]
-    def __init__(self,tvoc_threshold = 0.02, co2_threshold =1001, temp_threshold = 16, hum_threshold = 60):
-        self.tvoc_threshold = tvoc_threshold
-        self.co2_threshold = co2_threshold
-        self.temp_threshold = temp_threshold
-        self.hum_threshold = hum_threshold
-    def check_air_quality(self, tvoc, co2, temp, hum):
-        if tvoc is not None and tvoc > self.tvoc_threshold:
-            print("Warning: TVOC levels are above the threshold!")
-        if co2 is not None and co2 > self.co2_threshold:
-            print("Warning: CO2 levels are above the threshold!")
-        if temp is not None and temp > self.temp_threshold:
-            print("Warning: Temperature is above the threshold!")
-        if hum is not None and hum > self.hum_threshold:
-            print("Warning: Humidity is above the threshold!")
+
+class AirSensor: # Class to check air quality based on sensor readings and predefined thresholds [1],[2] 
+   def __init__(self): 
+        # Define thresholds clearly
+        self.tvoc_poor = 300
+        self.tvoc_critical = 600
+
+        self.co2_poor = 1000
+        self.co2_critical = 2000 
+
+        self.temp_poor = 17
+        self.temp_critical = 30
+
+        self.hum_poor = 61
+        self.hum_critical = 75
+
+    def check_air_quality(self, tvoc, co2, temp, hum): # Check air quality based on sensor readings and return any issues detected
+        issues = {}
+        if tvoc is not None:
+            if tvoc > self.tvoc_critical:
+                issues["tvoc"] = "Critical"
+            elif tvoc > self.tvoc_poor:
+                issues["tvoc"] = "Poor"
+
+        if co2 is not None:
+            if co2 > self.co2_critical:
+                issues["co2"] = "Critical"
+            elif co2 > self.co2_poor:
+                issues["co2"] = "Poor"
+
+        if temp is not None:
+            if temp > self.temp_critical:
+                issues["temperature"] = "Critical"
+            elif temp > self.temp_poor:
+                issues["temperature"] = "Poor"
+
+        if hum is not None:
+            if hum > self.hum_critical:
+                issues["humidity"] = "Critical"
+            elif hum > self.hum_poor:
+                issues["humidity"] = "Poor"
+
+        return issues
+   
+
+
+
+
+
+
+
+
+    
+
 
 
 
