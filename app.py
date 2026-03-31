@@ -78,8 +78,9 @@ class SensorReading(db.Model): # Sensor Reading Model
     Humidity = db.Column(db.Float) # Humidity reading
     CO2_reading = db.Column(db.Float) # CO2 level reading
     CO_Reading = db.Column(db.Float) # CO level reading
-    movement = db.Column(db.Boolean) # True/False for movement detected or not 
-
+    TVOC = db.Column(db.Float) # Total Volatile Organic Compounds reading
+    Air_Quality_Status = db.Column(db.String(50)) # Air quality status based on sensor readings
+ 
     def to_dict(self): # Convert reading to dictionary
         return { 
             "reading_id": self.reading_id, 
@@ -89,8 +90,11 @@ class SensorReading(db.Model): # Sensor Reading Model
             "Humidity": self.Humidity,
             "CO2_reading": self.CO2_reading,
             "CO_Reading": self.CO_Reading,
-            "movement": self.movement
+            "TVOC": self.TVOC,
+            "Air_Quality_Status": self.Air_Quality_Status
         }
+          
+
 
 # Raspberry Pi Model
 class Raspberry_Pi(db.Model): # Raspberry Pi Model
@@ -160,8 +164,18 @@ def upload_sensor():
         Humidity=data.get("Humidity"),
         CO2_reading=data.get("CO2_reading"),
         CO_Reading=data.get("CO_Reading"),
-        movement=data.get("movement")
+        movement=data.get("movement"),
+        TVOC=data.get("tvoc"),
+        Air_Quality_Status=data.get("status"),
     )
+
+    # Auto-generate alert
+    if data.get("status") in ["POOR", "CRITICAL"]:
+        alert = Alerts(
+        Pi_ID=data.get("Pi_ID"),
+        Message_Alert=f"Air quality {data.get('status')}: {data.get('issues')}"
+    )
+    save(alert)
     err = save(reading)       # Call save, catch any error it returns
     if err: return err        # If save failed, return the error
     return jsonify({"status": "sensor reading added"}), 201  # only reaches here if save worked
