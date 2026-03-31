@@ -282,14 +282,14 @@ if __name__ == "__main__": # Main program
 # Things I need to do:
 # Add all database entries + keys - tick
 # Add reading much like i did with SensorReading() - tick
-# Finish ERD diagram  - need to improve a few areas 
+# Finish ERD diagram  - tick
 # Need to look over where I can include keys - tick 
 # Test all routes with Postman - tick
 # Create dashboard to view readings - tick
 # Deploy on Raspberry Pi - tick
 # Write documentation for code - tick
 # Finishing refactoring code - in progress
-# Stay clam - ish 
-# Test with script on Pi - tick
-# 
+# Testing sensors - in progress
+# Testing finished program - in progress
+# Stay clam - ish  
 # Profit
