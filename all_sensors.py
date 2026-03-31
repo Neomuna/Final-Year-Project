@@ -11,52 +11,51 @@ from typing import Optional
 
 """Features following Python style guide and includes docstrings for all classes and methods.
 This code is designed to be modular and extensible, allowing for easy addition of new sensors in the future."""
-class Sensor:
+class Sensor: # Base class for all sensors
     """Base class for all sensors."""
 
-    def read(self) -> None:
+    def read(self) -> None: # Read data from the sensor
         """Read data from the sensor."""
         raise NotImplementedError
 
-    def display(self) -> None:
+    def display(self) -> None: # Display the sensor data in a human-readable format 
         """Display sensor data."""
         raise NotImplementedError
 
 
-class TVOCSensor(Sensor):
+class TVOCSensor(Sensor): # TVOC Sensor using UART communication
     """TVOC sensor using UART communication."""
 
-    def __init__(self, port: str = "/dev/ttyAMA0") -> None:
-        self.serial = serial.Serial(
-            port = port,
-            baudrate = 9600,
-            bytesize = 8,
-            parity = "N",
-            stopbits = 1,
-            timeout = 1,
+    def __init__(self, port: str = "/dev/ttyAMA0") -> None: # Initialise serial connection to TVOC sensor
+        self.serial = serial.Serial( 
+            port = port, # UART port for TVOC sensor 
+            baudrate = 9600, # Standard baud rate for many UART devices
+            bytesize = 8, # 8 data bits
+            parity = "N", # No parity
+            stopbits = 1, # 1 stop bit
+            timeout = 1, # 1 second timeout for reading data
         )
-        self.command = bytes([0x01, 0x03, 0x00, 0x00, 0x00, 0x00, 0x01, 0x84, 0x0A])
-        self.value: Optional[int] = None
+        self.command = bytes([0x01, 0x03, 0x00, 0x00, 0x00, 0x00, 0x01, 0x84, 0x0A]) # Command to request TVOC reading from sensor 
+        self.value: Optional[int] = None # Store the latest TVOC value in parts per billion (ppb)
 
-    def read(self) -> None:
+    def read(self) -> None: # Read TVOC value from sensor
         """Fetch TVOC value from sensor."""
         try:
-            self.serial.write(self.command)
-            time.sleep(0.1)
+            self.serial.write(self.command) # Send command to sensor to request TVOC reading
+            time.sleep(0.1) # Short delay to allow sensor to process command and prepare data
 
-            data = self.serial.read(7)
-            if len(data) == 7:
-                self.value = (data[3] << 8) | data[4]
+            data = self.serial.read(7) # Read 7 bytes of data from sensor (expected response length for TVOC reading)
+            if len(data) == 7: # Check if we received the expected number of bytes
+                self.value = (data[3] << 8) | data[4] # Combine the two bytes of TVOC data into a single integer value (ppb)
             else:
-                self.value = None
+                self.value = None # If we didn't receive the expected data, set value to None to indicate an error
 
-        except serial.SerialException:
-            self.value = None
-
-    def display(self) -> None:
+        except serial.SerialException: # Handle serial communication errors gracefully
+            self.value = None # Set value to None if there was an error communicating with the sensor 
+    def display(self) -> None: # Display the TVOC value in a human-readable format
         # Print TVOC reading.
-        if self.value is not None:
-            print(f"TVOC: {self.value} ppb")
+        if self.value is not None: 
+            print(f"TVOC: {self.value} ppb") # Display TVOC value in parts per billion (ppb) if we have a valid reading, otherwise indicate that there is no data
         else:
             print("TVOC: No data")
 
