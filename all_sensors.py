@@ -159,6 +159,24 @@ class SensorManager: # Manages multiple sensors and coordinates reading and disp
             print("-" * 40)
             time.sleep(2)
 
+class AirSensor: # Class to check air quality based on sensor readings and predefined thresholds [1],[2]
+    def __init__(self,tvoc_threshold = 0.02, co2_threshold =1001, temp_threshold = 16, hum_threshold = 60):
+        self.tvoc_threshold = tvoc_threshold
+        self.co2_threshold = co2_threshold
+        self.temp_threshold = temp_threshold
+        self.hum_threshold = hum_threshold
+    def check_air_quality(self, tvoc, co2, temp, hum):
+        if tvoc is not None and tvoc > self.tvoc_threshold:
+            print("Warning: TVOC levels are above the threshold!")
+        if co2 is not None and co2 > self.co2_threshold:
+            print("Warning: CO2 levels are above the threshold!")
+        if temp is not None and temp > self.temp_threshold:
+            print("Warning: Temperature is above the threshold!")
+        if hum is not None and hum > self.hum_threshold:
+            print("Warning: Humidity is above the threshold!")
+
+
+
 
 # Main Program
 
@@ -172,3 +190,16 @@ if __name__ == "__main__": # Create sensor manager and add all sensors to it, th
     manager.add_sensor(SHT45Sensor())
 
     manager.run() 
+
+
+# Reference:
+# Formaldehyde:
+# [1] https://www.hse.gov.uk/pubns/iacl88.htm
+
+# Carbon Dioxide:
+# [2] https://www.co2meter.com/en-uk/blogs/news/carbon-dioxide-indoor-levels-chart?srsltid=AfmBOoq-kpY_efXM7PtXR0MuDu-OECYW_o4m7gRn0sAuLZ85KX_KnLT1
+
+# Temperature and Humidity:
+# [3] https://www.hse.gov.uk/temperature/employer/managing.htm
+
+# [4] https://www.hse.gov.uk/foi/internalops/ocs/300-399/oc311_2.htm
