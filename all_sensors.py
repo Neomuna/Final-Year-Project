@@ -162,7 +162,7 @@ class SensorManager: # Manages multiple sensors and coordinates reading and disp
 
 class AirSensor: # Class to check air quality based on sensor readings and predefined thresholds [1],[2] 
    def __init__(self): 
-        # Define thresholds clearly
+        # Define thresholds c
         self.tvoc_poor = 300
         self.tvoc_critical = 600
 
@@ -175,7 +175,7 @@ class AirSensor: # Class to check air quality based on sensor readings and prede
         self.hum_poor = 61
         self.hum_critical = 75
 
-    def check_air_quality(self, tvoc, co2, temp, hum): # Check air quality based on sensor readings and return any issues detected
+   def check_air_quality(self, tvoc, co2, temp, hum): # Check air quality based on sensor readings and return any issues detected
         issues = {}
         if tvoc is not None:
             if tvoc > self.tvoc_critical:
@@ -203,20 +203,6 @@ class AirSensor: # Class to check air quality based on sensor readings and prede
 
         return issues
    
-
-
-
-
-
-
-
-
-    
-
-
-
-
-
 # Main Program
 
 if __name__ == "__main__": # Create sensor manager and add all sensors to it, then run the program
@@ -232,8 +218,8 @@ if __name__ == "__main__": # Create sensor manager and add all sensors to it, th
 
 
 # Reference:
-# Formaldehyde:
-# [1] https://www.hse.gov.uk/pubns/iacl88.htm
+# TVOC Sensor(Organic Compounds):
+# [1] hhttps://gpmoldinspection.com/article/what-is-tvoc-air-quality/ 
 
 # Carbon Dioxide:
 # [2] https://www.co2meter.com/en-uk/blogs/news/carbon-dioxide-indoor-levels-chart?srsltid=AfmBOoq-kpY_efXM7PtXR0MuDu-OECYW_o4m7gRn0sAuLZ85KX_KnLT1
