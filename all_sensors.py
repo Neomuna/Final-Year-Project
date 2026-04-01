@@ -72,26 +72,34 @@ class TVOCSensor(Sensor):
         return {"tvoc_uart": self.value}
 
 
-class SGP30Sensor(Sensor): #TVOC and CO2 sensor using I2C communication.
+class SGP30Sensor(Sensor):
     def __init__(self):
+        import time
+
         i2c = busio.I2C(board.SCL, board.SDA)
 
         while not i2c.try_lock():
-            pass
+            time.sleep(0.1)
         i2c.unlock()
 
-        time.sleep(1)
+        time.sleep(2)
 
-        for _ in range(3):
+        self.sensor = None
+
+        for _ in range(5):
             try:
                 self.sensor = adafruit_sgp30.Adafruit_SGP30(i2c)
                 self.sensor.iaq_init()
                 time.sleep(1)
+                print("SGP30 initialised")
                 break
-            except OSError:
-                time.sleep(1)
+            except Exception:
+                time.sleep(2)
 
     def read(self):
+        if self.sensor is None:
+            return {"tvoc_i2c": None, "co2": None}
+
         try:
             return {
                 "tvoc_i2c": self.sensor.TVOC,
@@ -121,7 +129,7 @@ class MQ7Sensor(Sensor):
     """Carbon Monoxide Sensor (Digital Output)."""
 
     def __init__(self):
-        self.sensor = DigitalInputDevice(23, pull_up=False)
+        self.sensor = DigitalInputDevice(23, pull_up=False) # GPIO pin 23 
 
     def read(self):
         return {"co": self.sensor.is_active}
