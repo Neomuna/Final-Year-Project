@@ -72,13 +72,24 @@ class TVOCSensor(Sensor):
         return {"tvoc_uart": self.value}
 
 
-class SGP30Sensor(Sensor): 
-    """SGP30 Air Quality Sensor (VOC + CO2)."""
-
+class SGP30Sensor(Sensor): #TVOC and CO2 sensor using I2C communication.
     def __init__(self):
-        i2c = busio.I2C(board.SCL, board.SDA) # Initialize I2C bus for SGP30
-        self.sensor = adafruit_sgp30.Adafruit_SGP30(i2c) #
-        self.sensor.iaq_init() # Initialize IAQ algorithm
+        i2c = busio.I2C(board.SCL, board.SDA)
+
+        while not i2c.try_lock():
+            pass
+        i2c.unlock()
+
+        time.sleep(1)
+
+        for _ in range(3):
+            try:
+                self.sensor = adafruit_sgp30.Adafruit_SGP30(i2c)
+                self.sensor.iaq_init()
+                time.sleep(1)
+                break
+            except OSError:
+                time.sleep(1)
 
     def read(self):
         try:
@@ -114,8 +125,6 @@ class MQ7Sensor(Sensor):
 
     def read(self):
         return {"co": self.sensor.is_active}
-
-
 
 # Sensor Manager
 
