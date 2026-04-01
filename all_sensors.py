@@ -1,13 +1,12 @@
 # Unified Sensor System for Raspberry Pi (Refactored)
-
 import time
 import serial
 import board
 import adafruit_dht
 import requests 
 from gpiozero import DigitalInputDevice
-from sgp30 import SGP30
-from smbus import SMBus
+import busio
+import adafruit_sgp30
 from typing import Optional
 
 
@@ -18,7 +17,6 @@ class Sensor:
     def read(self) -> dict:
         """Return sensor data as a dictionary."""
         raise NotImplementedError
-
 
 
 # Flask Server Communication with app.py 
@@ -74,19 +72,19 @@ class TVOCSensor(Sensor):
         return {"tvoc_uart": self.value}
 
 
-class SGP30Sensor(Sensor):
+class SGP30Sensor(Sensor): 
     """SGP30 Air Quality Sensor (VOC + CO2)."""
 
     def __init__(self):
-        self.bus = SMBus(1)
-        self.sensor = SGP30(self.bus)
+        i2c = busio.I2C(board.SCL, board.SDA) # Initialize I2C bus for SGP30
+        self.sensor = adafruit_sgp30.Adafruit_SGP30(i2c) #
+        self.sensor.iaq_init() # Initialize IAQ algorithm
 
     def read(self):
         try:
-            aq = self.sensor.air_quality()
             return {
-                "tvoc_i2c": aq.voc_ppb,
-                "co2": aq.co2_ppm
+                "tvoc_i2c": self.sensor.TVOC,
+                "co2": self.sensor.eCO2
             }
         except Exception:
             return {"tvoc_i2c": None, "co2": None}
@@ -125,13 +123,13 @@ class SensorManager:
     """Manages multiple sensors and aggregates their data."""
 
     def __init__(self):
-        self.sensors = []
+        self.sensors = [] # List of Sensor instances
 
     def add_sensor(self, sensor: Sensor):
         self.sensors.append(sensor)
 
-    def read_all(self):
-        readings = {}
+    def read_all(self): 
+        readings = {} # Aggregate all sensor readings into a single dictionary
 
         for sensor in self.sensors:
             data = sensor.read()
