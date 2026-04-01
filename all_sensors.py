@@ -110,7 +110,7 @@ class MQ7Sensor(Sensor):
     """Carbon Monoxide Sensor (Digital Output)."""
 
     def __init__(self):
-        self.sensor = DigitalInputDevice(23, pull_up=True, active_state=False)
+        self.sensor = DigitalInputDevice(23, pull_up=False)
 
     def read(self):
         return {"co": self.sensor.is_active}
