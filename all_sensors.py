@@ -8,6 +8,35 @@ from gpiozero import DigitalInputDevice
 import busio
 import adafruit_sgp30
 from typing import Optional
+import paho.mqtt.client as mqtt
+import json
+import os
+
+
+# Run the following commands in terminal to set MQTT environment variables before running the program:
+"""
+export MQTT_BROKER=192.168.1.10
+export MQTT_PORT=1883
+export MQTT_TOPIC=sensors/air_quality
+""" 
+
+
+# MQTT Publisher Class: This is the publisher part of the server 
+class MQTTPublisher:
+    def __init__(self):
+        self.broker = os.getenv("MQTT_BROKER", "192.168.1.100")
+        self.port = int(os.getenv("MQTT_PORT", 1883))
+        self.topic = os.getenv("MQTT_TOPIC", "sensors/air_quality")
+
+        self.client = mqtt.Client()
+        self.client.connect(self.broker, self.port, 60)
+
+    def publish(self, payload):
+        try:
+            self.client.publish(self.topic, json.dumps(payload))
+            print("Published to MQTT")
+        except Exception as e:
+            print(f"MQTT error: {e}")
 
 
 # Base Sensor Class
@@ -215,15 +244,18 @@ class AirSensor:
 # Main Program
 
 if __name__ == "__main__":
-    manager = SensorManager()
 
-    manager.add_sensor(TVOCSensor())
-    manager.add_sensor(DHT22Sensor())
-    manager.add_sensor(MQ7Sensor())
-    manager.add_sensor(SGP30Sensor())
+    mqtt_client = MQTTPublisher()  # Initialize MQTT Publisher
+    manager = SensorManager() # Create Sensor Manager and add all sensors
 
-    air_sensor = AirSensor()
-    previous_issues = {}
+    manager.add_sensor(TVOCSensor()) # TVOC sensor using UART
+    manager.add_sensor(DHT22Sensor()) # Temperature and Humidity sensor
+    manager.add_sensor(MQ7Sensor()) # Carbon Monoxide sensor (digital output)
+    manager.add_sensor(SGP30Sensor()) # TVOC and CO2 sensor using I2C
+
+
+    air_sensor = AirSensor() # Air quality evaluation logic
+    previous_issues = {} # Track previous issues to avoid redundant alerts 
 
     print("Starting Sensor System")
 
@@ -244,8 +276,8 @@ if __name__ == "__main__":
             "issues": issues,
         }
 
-        # Send to server
-        send_to_server(payload)
+        # Send to server 
+        mqtt_client.publish(payload) 
 
         # Local alert (optional)
         if issues != previous_issues:
