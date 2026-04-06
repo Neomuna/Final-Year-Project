@@ -4,7 +4,6 @@
 # pip install mysql-connector-python 
 # pip install PyMySQL
 
-# Notes to self:
 
 # Activate virtual environment with: source flask_env/bin/activate
 #Install everything: pip install flask flask-sqlalchemy mysql-connector-python
@@ -13,10 +12,20 @@
 #pip show flask
 #pip show flask-sqlalchemy
 
+# Run the following commands in terminal to set MQTT environment variables before running the program:
+"""
+export MQTT_BROKER=192.168.1.10
+export MQTT_PORT=1883
+export MQTT_TOPIC=sensors/air_quality
+""" 
 
 from flask import Flask, request, jsonify, render_template
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, timezone 
+import paho.mqtt.client as mqtt
+import threading
+import json
+import os
 
 app = Flask(__name__) # Initialise Flask app
 
@@ -26,6 +35,55 @@ db = SQLAlchemy(app) # Initialise SQLAlchemy
 #  Database Config 
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:@86.17.112.152/Final_Year_Project' # My Macs IP address 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False  # To suppress warning
+
+
+
+# MQTT Listener to receive data from sensors and save to database 
+def mqtt_listener():
+    broker = os.getenv("MQTT_BROKER", "0.0.0.0")
+    port = int(os.getenv("MQTT_PORT", 1883))
+    topic = os.getenv("MQTT_TOPIC", "sensors/air_quality")
+
+    def on_connect(client, userdata, flags, rc):
+        print("Connected to MQTT Broker")
+        client.subscribe(topic)
+
+    def on_message(client, userdata, msg):
+        data = json.loads(msg.payload.decode())
+        print("Received via MQTT:", data)
+
+        # 👉 Convert payload → DB model
+        reading = SensorReading(
+            Pi_ID=data.get("Pi_ID"),
+            Temperature=data.get("temperature"),
+            Humidity=data.get("humidity"),
+            CO2_reading=data.get("co2"),
+            CO_Reading=data.get("co"),
+            TVOC=data.get("tvoc"),
+            Air_Quality_Status=data.get("status"),
+        )
+
+        # Save reading
+        db.session.add(reading)
+
+        # Alerts
+        if data.get("status") in ["POOR", "CRITICAL"]:
+            alert = Alerts(
+                Pi_ID=data.get("Pi_ID"),
+                Message_Alert=f"Air quality {data.get('status')}: {data.get('issues')}"
+            )
+            db.session.add(alert)
+
+        db.session.commit()
+
+    client = mqtt.Client()
+    client.on_connect = on_connect
+    client.on_message = on_message
+
+    client.connect(broker, port, 60)
+    client.loop_forever()
+
+
 
 # Added home route for testing due to issues with Flask server starting
 @app.get("/") # Home route
@@ -160,7 +218,7 @@ def upload_sensor():
 
     reading = SensorReading(
         Pi_ID=data.get("Pi_ID"),
-        Temperature=data.get("Temperature"),
+        Temperature=data.get("temperature"),
         Humidity=data.get("Humidity"),
         CO2_reading=data.get("CO2_reading"),
         CO_Reading=data.get("CO_Reading"),
@@ -280,8 +338,14 @@ def dashboard_sensors(): # View sensor readings dashboard
     return render_template("sensor_dashboard.html", readings=readings) # Render sensor dashboard template
 
 # Run the program
-if __name__ == "__main__": # Main program
-    app.run(host="0.0.0.0", port=5000) # use instead when deploying to the Pi
+if __name__ == "__main__": 
+    thread = threading.Thread(target=mqtt_listener) # Start MQTT listener in separate thread
+    thread.daemon = True # Set thread as daemon so it exits when main program exits
+    thread.start() # Start MQTT listener thread
+
+    app.run(host="0.0.0.0", port=5000) # Run Flask app on all interfaces, port 5000 
+
+
 
 # Refrences: 
 # https://www.youtube.com/watch?v=hQl2wyJvK5k 
