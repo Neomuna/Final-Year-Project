@@ -26,62 +26,83 @@ import paho.mqtt.client as mqtt
 import threading
 import json
 import os
+from typing import Tuple, Any, Dict, Optional
 
 app = Flask(__name__) # Initialise Flask app
 
 db = SQLAlchemy(app) # Initialise SQLAlchemy
 
 
-#  Database Config 
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:@86.17.112.152/Final_Year_Project' # My Macs IP address 
+#  Database Config - Using environment variables for security
+app.config['SQLALCHEMY_DATABASE_URI'] = (
+    f"mysql+pymysql://{os.getenv('DB_USER', 'root')}:"
+    f"{os.getenv('DB_PASSWORD', '')}@"
+    f"{os.getenv('DB_HOST', 'localhost')}:"
+    f"{os.getenv('DB_PORT', '3306')}/"
+    f"{os.getenv('DB_NAME', 'Final_Year_Project')}"
+)
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False  # To suppress warning
 
 
 
-# MQTT Listener to receive data from sensors and save to database 
+# MQTT Listener to receive data from sensors and save to database
 def mqtt_listener():
     broker = os.getenv("MQTT_BROKER", "0.0.0.0")
     port = int(os.getenv("MQTT_PORT", 1883))
     topic = os.getenv("MQTT_TOPIC", "sensors/air_quality")
 
     def on_connect(client, userdata, flags, rc):
-        print("Connected to MQTT Broker")
-        client.subscribe(topic)
+        # Check connection status code
+        if rc == 0:
+            print("Connected to MQTT Broker")
+            client.subscribe(topic)
+        else:
+            print(f"MQTT connection failed with code {rc}")  # Log connection errors
 
     def on_message(client, userdata, msg):
-        data = json.loads(msg.payload.decode())
-        print("Received via MQTT:", data)
+        try:  # Wrap payload parsing to prevent thread crashes
+            data = json.loads(msg.payload.decode())
+            print("Received via MQTT:", data)
 
-        # 👉 Convert payload → DB model
-        reading = SensorReading(
-            Pi_ID=data.get("Pi_ID"),
-            Temperature=data.get("temperature"),
-            Humidity=data.get("humidity"),
-            CO2_reading=data.get("co2"),
-            CO_Reading=data.get("co"),
-            TVOC=data.get("tvoc"),
-            Air_Quality_Status=data.get("status"),
-        )
-
-        # Save reading
-        db.session.add(reading)
-
-        # Alerts
-        if data.get("status") in ["POOR", "CRITICAL"]:
-            alert = Alerts(
+            # Convert payload to DB model
+            reading = SensorReading(
                 Pi_ID=data.get("Pi_ID"),
-                Message_Alert=f"Air quality {data.get('status')}: {data.get('issues')}"
+                Temperature=data.get("temperature"),
+                Humidity=data.get("humidity"),
+                CO2_reading=data.get("co2"),
+                CO_Reading=data.get("co"),
+                TVOC=data.get("tvoc"),
+                Air_Quality_Status=data.get("status"),
             )
-            db.session.add(alert)
 
-        db.session.commit()
+            # Save reading
+            db.session.add(reading)
+
+            # Alerts
+            if data.get("status") in ["POOR", "CRITICAL"]:
+                alert = Alerts(
+                    Pi_ID=data.get("Pi_ID"),
+                    Message_Alert=f"Air quality {data.get('status')}: {data.get('issues')}"
+                )
+                db.session.add(alert)
+
+            db.session.commit()
+        except (json.JSONDecodeError, ValueError) as e:  # Handle invalid JSON
+            print(f"Error parsing MQTT message: {e}")
+            return  # Skip this message, continue listening
+        except Exception as e:  # Catch database errors too
+            print(f"Error processing sensor data: {e}")
+            db.session.rollback()  # Rollback failed transaction to prevent locked state
 
     client = mqtt.Client()
     client.on_connect = on_connect
     client.on_message = on_message
 
-    client.connect(broker, port, 60)
-    client.loop_forever()
+    try:
+        client.connect(broker, port, 60)
+        client.loop_forever()
+    except Exception as e:
+        print(f"MQTT connection error: {e}")
 
 
 
@@ -96,30 +117,35 @@ def home(): # Home route
 
 
 # Database helper to save an object
-def save(obj): # Save object to database
+def save(obj: Any) -> Optional[Tuple[Dict, int]]:  # Type hints for parameters and return
+    """Save object to database. Returns error tuple if failure, None if success."""
     try: # Try to save object
         db.session.add(obj) # Add object to session
         db.session.commit() # Commit session to database
+        return None  # Explicit success return instead of implicit None
     except Exception as e: # If error occurs
         db.session.rollback() # Rollback session
         return jsonify({"error": str(e)}), 500 # Return error response
 
 # Helper to get JSON data from request
-def get_json(): # Get JSON data from request
+def get_json() -> Tuple[Optional[Dict], Optional[Tuple[Dict, int]]]:  # Type hints
+    """Get JSON data from request. Returns (data, error) tuple."""
     data = request.get_json() # Get JSON data
     if not data: 
         return None, (jsonify({"error": "Invalid JSON"}), 400) # Return error if no data
     return data, None  
 
 # Helper to get latest entry from a model
-def get_latest(model, order_field, error_msg): # Get latest entry from model
+def get_latest(model: Any, order_field: Any, error_msg: str) -> Tuple[Optional[Any], Optional[Tuple[Dict, int]]]:  # Type hints
+    """Get latest entry from model. Returns (object, error) tuple."""
     obj = model.query.order_by(order_field.desc()).first() # Query latest entry
     if not obj:
         return None, (jsonify({"error": error_msg}), 404) # Return error if no entry found
     return obj, None 
 
 # Helper to validate required fields in JSON data
-def validate_fields(data, required_fields):
+def validate_fields(data: Dict, required_fields: list) -> Optional[Tuple[Dict, int]]:  # Type hints
+    """Validate required fields in JSON data. Returns error tuple or None if all fields present."""
     missing = [field for field in required_fields if data.get(field) is None]
     if missing:
         return jsonify({"error": f"Missing fields: {', '.join(missing)}"}), 400
@@ -181,7 +207,6 @@ class Alerts(db.Model): # Alerts Model
     Alert_ID = db.Column(db.Integer, primary_key=True) # Unique ID for each alert 
     Pi_ID = db.Column(db.Integer, db.ForeignKey("Raspberry_Pi.Pi_ID"), nullable=False) # ID of the Pi generating the alert
     Threshold = db.Column(db.Float) # Threshold value that triggered the alert
-    Motion = db.Column(db.Float) # Used for test sensor alongside movement
     Message_Alert = db.Column(db.String(255)) # Alert message
     Alerts_Timestamp = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc)) # Timestamp of the alert
 
@@ -190,7 +215,6 @@ class Alerts(db.Model): # Alerts Model
             "Alert_ID": self.Alert_ID,
             "Pi_ID": self.Pi_ID,
             "Threshold": self.Threshold,
-            "Motion": self.Motion,
             "Message_Alert": self.Message_Alert,
             "Alerts_Timestamp": self.Alerts_Timestamp.isoformat()
         }
@@ -201,6 +225,9 @@ class Location (db.Model): # Location Model
     Location_ID = db.Column(db.Integer, primary_key=True) # Unique ID for each location
     Building = db.Column(db.String(255)) # Building location 
     Roomname = db.Column(db.String(255)) # Name of room 
+    
+    # One-to-many relationship to allow Location.pis to get all Pis at that location
+    pis = db.relationship("Raspberry_Pi", backref="location")
 
     def to_dict(self):  # Convert location to dictionary
         return {
@@ -219,10 +246,9 @@ def upload_sensor():
     reading = SensorReading(
         Pi_ID=data.get("Pi_ID"),
         Temperature=data.get("temperature"),
-        Humidity=data.get("Humidity"),
-        CO2_reading=data.get("CO2_reading"),
-        CO_Reading=data.get("CO_Reading"),
-        movement=data.get("movement"),
+        Humidity=data.get("humidity"),  # Match lowercase from sensor payload
+        CO2_reading=data.get("co2"),  # Match lowercase field name
+        CO_Reading=data.get("co"),  # Match lowercase field name
         TVOC=data.get("tvoc"),
         Air_Quality_Status=data.get("status"),
     )
@@ -317,7 +343,6 @@ def upload_alert(): # Upload alert to database
     alert = Alerts( # Create new Alerts object
         Pi_ID=data.get("Pi_ID"), # ID of the Pi generating the alert
         Threshold=data.get("Threshold"), # Threshold value that triggered the alert
-        Motion=data.get("Motion"), # Used for test sensor alongside movement
         Message_Alert=data.get("Message_Alert") # Alert message
     )
 
@@ -338,12 +363,20 @@ def dashboard_sensors(): # View sensor readings dashboard
     return render_template("sensor_dashboard.html", readings=readings) # Render sensor dashboard template
 
 # Run the program
-if __name__ == "__main__": 
-    thread = threading.Thread(target=mqtt_listener) # Start MQTT listener in separate thread
-    thread.daemon = True # Set thread as daemon so it exits when main program exits
-    thread.start() # Start MQTT listener thread
-
-    app.run(host="0.0.0.0", port=5000) # Run Flask app on all interfaces, port 5000 
+if __name__ == "__main__":
+    try:
+        # Start MQTT listener in separate thread
+        thread = threading.Thread(target=mqtt_listener, name="MQTT-Listener")
+        thread.daemon = True # Set thread as daemon so it exits when main program exits
+        thread.start() # Start MQTT listener thread
+        print("MQTT listener thread started")
+        
+        # Run Flask app on all interfaces, port 5000
+        # debug=False for production to prevent auto-reloading (which spawns multiple MQTT threads)
+        app.run(host="0.0.0.0", port=5000, debug=False)
+    except Exception as e:
+        print(f"Failed to start application: {e}")
+        raise 
 
 
 
