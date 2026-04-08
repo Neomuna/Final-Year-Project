@@ -1,3 +1,7 @@
+# This program has been refactored by CoPilot and myself. Fixing a few secuity issues and improving code structure. 
+
+
+
 # Flask program for database 
 # Already installed: !pip install flask
 # Alreadt installeld: !pip install -U Flask-SQLAlchemy
