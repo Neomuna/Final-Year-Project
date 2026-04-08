@@ -110,27 +110,6 @@
             color: #a61e4d;
         }
 
-        .sensor-value.movement {
-            color: #51cf66;
-        }
-
-        .movement-badge {
-            display: inline-block;
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 0.85em;
-            font-weight: 600;
-        }
-
-        .movement-badge.detected {
-            background-color: #ffdeea;
-            color: #a61e4d;
-        }
-
-        .movement-badge.not-detected {
-            background-color: #e7f5ff;
-            color: #004085;
-        }
 
         .pi-info {
             background-color: #f8f9fa;
@@ -215,17 +194,6 @@
                     <span class="sensor-value co">
                         {{ r.CO_Reading if r.CO_Reading is not none else 'N/A' }}
                         <span class="unit">ppm</span>
-                    </span>
-                </div>
-
-                <div class="sensor-row">
-                    <span class="sensor-label">Movement</span>
-                    <span class="sensor-value movement">
-                        {% if r.movement %}
-                            <span class="movement-badge detected">Detected</span>
-                        {% else %}
-                            <span class="movement-badge not-detected">No Movement</span>
-                        {% endif %}
                     </span>
                 </div>
 
