@@ -71,11 +71,11 @@ def mqtt_listener():
             # Convert payload to DB model
             reading = SensorReading(
                 Pi_ID=data.get("Pi_ID"),
-                Temperature=data.get("temperature"),
-                Humidity=data.get("humidity"),
+                Temperature=data.get("Temperature"),
+                Humidity=data.get("Humidity"),
                 CO2_reading=data.get("co2"),
                 CO_Reading=data.get("co"),
-                TVOC=data.get("tvoc"),
+                TVOC=data.get("TVOC"),
                 Air_Quality_Status=data.get("status"),
             )
 
@@ -83,10 +83,13 @@ def mqtt_listener():
             db.session.add(reading)
 
             # Alerts
-            if data.get("status") in ["POOR", "CRITICAL"]:
+            if data.get("Air_Quality_Status") in ["POOR", "CRITICAL"]:
                 alert = Alerts(
                     Pi_ID=data.get("Pi_ID"),
-                    Message_Alert=f"Air quality {data.get('status')}: {data.get('issues')}"
+                    alert_type="AIR_QUALITY",  # Added alert type
+                    value=data.get("CO2_reading") or data.get("CO_Reading") or data.get("TVOC"),  # The problematic value
+                    threshold=1000 if data.get("CO2_reading") else (1 if data.get("CO_Reading") else 300),  # Appropriate threshold
+                    message=f"Air quality {data.get('Air_Quality_Status')}: {data.get('issues')}"  # Updated to match SQL column
                 )
                 db.session.add(alert)
 
@@ -159,25 +162,27 @@ def validate_fields(data: Dict, required_fields: list) -> Optional[Tuple[Dict, i
 # SQLAlchemy Models 
 class SensorReading(db.Model): # Sensor Reading Model
     __tablename__ = 'Sensor_Readings' # Sensor Readings table 
-    reading_id = db.Column(db.Integer, primary_key=True) # Unique ID for each reading
+    Measurement_ID = db.Column(db.Integer, primary_key=True) # Unique ID for each reading (matches SQL)
     Pi_ID = db.Column(db.Integer, db.ForeignKey("Raspberry_Pi.Pi_ID")) # Foreign key to Raspberry Pi
     timestamp = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc)) # Timestamp of reading
     Temperature = db.Column(db.Float) # Temperature reading
     Humidity = db.Column(db.Float) # Humidity reading
     CO2_reading = db.Column(db.Float) # CO2 level reading
     CO_Reading = db.Column(db.Float) # CO level reading
-    TVOC = db.Column(db.Float) # Total Volatile Organic Compounds reading
-    Air_Quality_Status = db.Column(db.String(50)) # Air quality status based on sensor readings
+    movement = db.Column(db.Integer, default=0) # Movement detection (matches SQL)
+    TVOC = db.Column(db.Float) # Total Volatile Organic Compounds reading (added to match your code)
+    Air_Quality_Status = db.Column(db.String(50)) # Air quality status based on sensor readings (added to match your code)
  
     def to_dict(self): # Convert reading to dictionary
         return { 
-            "reading_id": self.reading_id, 
+            "Measurement_ID": self.Measurement_ID,  # Updated to match SQL
             "Pi_ID": self.Pi_ID,
             "timestamp": self.timestamp.isoformat(),
             "Temperature": self.Temperature,
             "Humidity": self.Humidity,
             "CO2_reading": self.CO2_reading,
             "CO_Reading": self.CO_Reading,
+            "movement": self.movement,
             "TVOC": self.TVOC,
             "Air_Quality_Status": self.Air_Quality_Status
         }
@@ -188,9 +193,9 @@ class SensorReading(db.Model): # Sensor Reading Model
 class Raspberry_Pi(db.Model): # Raspberry Pi Model
     __tablename__ = "Raspberry_Pi" # Raspberry Pi table
     Pi_ID = db.Column(db.Integer, primary_key=True) # Unique ID for each Pi
-    Location_ID = db.Column(db.Integer, db.ForeignKey("location.Location_ID")) # Foreign key to Location
-    IP_Address = db.Column(db.String(255)) # IP Address of the Pi
-    Last_Used_Timestamp = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc)) # Last used timestsource flask_env/bin/activate
+    Location_ID = db.Column(db.String(50)) # Foreign key to Location (matches SQL varchar(50) - note: this should be int in SQL but we'll work with what's there)
+    IP_Address = db.Column(db.String(50)) # IP Address of the Pi (matches SQL varchar(50))
+    Last_used = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc)) # Last used timestamp (matches SQL column name)
 
 
     # One-to-many relationship 
@@ -202,7 +207,7 @@ class Raspberry_Pi(db.Model): # Raspberry Pi Model
             "Pi_ID": self.Pi_ID,
             "Location_ID": self.Location_ID,
             "IP_Address": self.IP_Address,
-            "Last_Used_Timestamp": self.Last_Used_Timestamp.isoformat()
+            "Last_used": self.Last_used.isoformat()  # Updated to match SQL column name
         }
 
 # Alerts Model
@@ -210,28 +215,32 @@ class Alerts(db.Model): # Alerts Model
     __tablename__ = "Alerts" # Alerts table
     Alert_ID = db.Column(db.Integer, primary_key=True) # Unique ID for each alert 
     Pi_ID = db.Column(db.Integer, db.ForeignKey("Raspberry_Pi.Pi_ID"), nullable=False) # ID of the Pi generating the alert
-    Threshold = db.Column(db.Float) # Threshold value that triggered the alert
-    Message_Alert = db.Column(db.String(255)) # Alert message
-    Alerts_Timestamp = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc)) # Timestamp of the alert
+    timestamp = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc)) # Timestamp of the alert (matches SQL)
+    alert_type = db.Column(db.String(50)) # Type of alert (matches SQL)
+    value = db.Column(db.Float) # Value that triggered alert (matches SQL)
+    threshold = db.Column(db.Float) # Threshold value (matches SQL)
+    message = db.Column(db.Text) # Alert message (matches SQL)
 
     def to_dict(self): # Convert alert to dictionary
         return {
             "Alert_ID": self.Alert_ID,
             "Pi_ID": self.Pi_ID,
-            "Threshold": self.Threshold,
-            "Message_Alert": self.Message_Alert,
-            "Alerts_Timestamp": self.Alerts_Timestamp.isoformat()
+            "timestamp": self.timestamp.isoformat(),  # Updated to match SQL
+            "alert_type": self.alert_type,  # Updated to match SQL
+            "value": self.value,  # Updated to match SQL
+            "threshold": self.threshold,  # Updated to match SQL
+            "message": self.message  # Updated to match SQL
         }
 
 # Location Model
 class Location (db.Model): # Location Model
     __tablename__ = "Location" # Location table
     Location_ID = db.Column(db.Integer, primary_key=True) # Unique ID for each location
-    Building = db.Column(db.String(255)) # Building location 
-    Roomname = db.Column(db.String(255)) # Name of room 
+    Building = db.Column(db.String(100)) # Building location (matches SQL varchar(100))
+    Roomname = db.Column(db.String(100)) # Name of room (matches SQL varchar(100))
     
-    # One-to-many relationship to allow Location.pis to get all Pis at that location
-    pis = db.relationship("Raspberry_Pi", backref="location")
+    # Note: No foreign key relationship due to Location_ID being varchar in Raspberry_Pi table
+    # This is a schema design issue that should be fixed in the SQL
 
     def to_dict(self):  # Convert location to dictionary
         return {
@@ -249,12 +258,12 @@ def upload_sensor():
 
     reading = SensorReading(
         Pi_ID=data.get("Pi_ID"),
-        Temperature=data.get("temperature"),
-        Humidity=data.get("humidity"),  # Match lowercase from sensor payload
-        CO2_reading=data.get("co2"),  # Match lowercase field name
-        CO_Reading=data.get("co"),  # Match lowercase field name
-        TVOC=data.get("tvoc"),
-        Air_Quality_Status=data.get("status"),
+        Temperature=data.get("Temperature"),
+        Humidity=data.get("Humidity"),  # Match lowercase from sensor payload
+        CO2_reading=data.get("CO2_reading"),  # Match lowercase field name
+        CO_Reading=data.get("CO_Reading"),  # Match lowercase field name
+        TVOC=data.get("TVOC"),
+        Air_Quality_Status=data.get("Air_Quality_Status"),
     )
 
     # Auto-generate alert
@@ -340,14 +349,16 @@ def latest_pi(): # Get latest Raspberry Pi info from database
 @app.post("/api/upload/alert") # Route to upload alert
 def upload_alert(): # Upload alert to database
     data, error = get_json() # Get JSON data from request
-    error = validate_fields(data, ["Pi_ID", "Message_Alert"]) # Validate fields required for an alert
+    error = validate_fields(data, ["Pi_ID", "message"]) # Validate fields required for an alert (updated to match SQL)
     if error:
         return error
 
     alert = Alerts( # Create new Alerts object
         Pi_ID=data.get("Pi_ID"), # ID of the Pi generating the alert
-        Threshold=data.get("Threshold"), # Threshold value that triggered the alert
-        Message_Alert=data.get("Message_Alert") # Alert message
+        alert_type=data.get("alert_type", "GENERAL"), # Type of alert (matches SQL)
+        value=data.get("value"), # Value that triggered alert (matches SQL)
+        threshold=data.get("threshold"), # Threshold value (matches SQL)
+        message=data.get("message") # Alert message (matches SQL)
     )
 
     save(alert) # Save alert to database
@@ -355,7 +366,7 @@ def upload_alert(): # Upload alert to database
 
 @app.get("/api/latest/alert") # Route to get latest alert
 def latest_alert(): # Get latest alert from database
-    alert, error = get_latest( Alerts, Alerts.Alerts_Timestamp, "No alerts found" ) # Get latest alert
+    alert, error = get_latest( Alerts, Alerts.timestamp, "No alerts found" ) # Get latest alert (updated to match SQL column)
     if error: 
         return error
     return jsonify(alert.to_dict()) # Return latest alert as JSON

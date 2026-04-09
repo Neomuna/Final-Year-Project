@@ -50,10 +50,6 @@ class Sensor:
         raise NotImplementedError
 
 
-# Flask Server Communication with app.py 
-SERVER_URL = "http://172.20.10.5:5000/api/upload/sensor"
-
-
 def get_overall_status(issues: dict) -> str:  # Type hints
     """Convert issues dict into a single status string."""
     if not issues:
@@ -62,19 +58,6 @@ def get_overall_status(issues: dict) -> str:  # Type hints
         return "CRITICAL"
     return "POOR"
 
-
-def send_to_server(payload: dict) -> None:  # Type hints
-    """Send sensor data to Flask server."""
-    try:
-        response = requests.post(SERVER_URL, json=payload, timeout=5)
-
-        if response.status_code == 201:
-            print("Data sent to server")
-        else:
-            print(f"Server error: {response.status_code}")
-
-    except requests.exceptions.RequestException as e:
-        print(f"Failed to connect: {e}")
 
 # Sensor Implementations
 
@@ -112,9 +95,9 @@ class TVOCSensor(Sensor):
 
         return {"tvoc_uart": self.value}
     
-    def __del__(self):
+    def __del__(self): # Destructor to ensure serial port is closed
         """Ensure serial port is closed on cleanup."""
-        if self.serial and self.serial.is_open:
+        if self.serial and self.serial.is_open: # Check if serial port is open before trying to close
             self.serial.close()
 
 
@@ -179,12 +162,12 @@ class DHT22Sensor(Sensor):
         """Read temperature and humidity. Returns dict with sensor readings or None values."""
         try:
             return {
-                "temperature": self.sensor.temperature,
+                "Temperature": self.sensor.Temperature,
                 "Humidity": self.sensor.humidity
             }
         except RuntimeError as e:
             print(f"DHT22 read error: {e}")
-            return {"temperature": None, "Humidity": None}
+            return {"Temperature": None, "Humidity": None}
 
 
 class MQ7Sensor(Sensor):
@@ -242,12 +225,12 @@ class AirSensor:
         issues = {}
 
         # Carbon Monoxide overrides everything
-        if data.get("CO_Reading") is True:
-            return {"CO_Reading": "CRITICAL"}
+        if data.get("co") is True:
+            return {"co": "CRITICAL"}
 
         tvoc = data.get("tvoc_i2c") or data.get("tvoc_uart")
-        co2 = data.get("CO2_reading")
-        temp = data.get("temperature")
+        co2 = data.get("co2")
+        temp = data.get("Temperature")
         hum = data.get("Humidity")
 
         if tvoc is not None:
@@ -264,9 +247,9 @@ class AirSensor:
 
         if temp is not None:
             if temp > self.temp_critical:
-                issues["temperature"] = "CRITICAL"
+                issues["Temperature"] = "CRITICAL"
             elif temp > self.temp_poor:
-                issues["temperature"] = "POOR"
+                issues["Temperature"] = "POOR"
 
         if hum is not None:
             if hum > self.hum_critical:
@@ -303,7 +286,7 @@ if __name__ == "__main__":
             # Prepare payload for Flask
             payload = {
                 "Pi_ID": 1,
-                "temperature": readings.get("temperature"),
+                "Temperature": readings.get("Temperature"),
                 "Humidity": readings.get("Humidity"),
                 "co2": readings.get("co2"),
                 "co": readings.get("co"),
@@ -312,9 +295,7 @@ if __name__ == "__main__":
                 "issues": issues,
             }
 
-            
-            # Send to server (HTTP) 
-            send_to_server(payload)
+
             
             #Send to MQTT 
             mqtt_client.publish(payload) 
@@ -351,3 +332,7 @@ if __name__ == "__main__":
 # [3] https://www.hse.gov.uk/temperature/employer/managing.htm
 
 # [4] https://www.hse.gov.uk/foi/internalops/ocs/300-399/oc311_2.htm
+
+
+# Things to do:
+# Check over co and co2 naming consistency between sensors and Flask app. 
