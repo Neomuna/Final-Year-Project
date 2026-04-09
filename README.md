@@ -12,3 +12,65 @@ This is a living document and will be updated over the coming days and weeks.
 
 
 This IOT air quality device is designed to be placed in a room and used to measure the air quailty. It then ranks the air quality to air standards ratings and alerts the people in the room if they pass those hardcoded thresholds. 
+
+
+
+To start: 
+ssh  the IP address
+>> enter the password
+
+Run flask app,py and open database 
+
+How to run! 
+
+On terminal or cmd using the Pi(all_sensors.py):
+
+sudo apt update
+sudo apt install python3-venv
+
+Opens virtual environment:
+
+python3 -m venv venv
+
+# Activate venv 
+source venv/bin/activate
+
+////////////////////////////////////////////
+
+If the venv has been opened run: 
+
+deactivate
+
+Then run: 
+
+rm -rf ~/venv
+
+
+Recreate the system packages: 
+
+python3 -m venv --system-site-packages ~/venv
+
+
+Then run: 
+
+source ~/venv/bin/activate
+
+Next test if lpgio is visible: 
+
+python
+
+>>>import lgpio 
+
+
+If nothing shows it’s fixed 
+
+run: exit() 
+
+Then install all the packages and libraries again. Other libraries are available and terminal or cmd will display an error if a package is missing: 
+pip install adafruit-blinka
+pip install adafruit-circuitpython-sgp30
+pip install adafruit-circuitpython-dht
+pip install flask
+pip install paho-mqtt
+pip install gpiozero
+pip install flask
