@@ -51,7 +51,7 @@ class Sensor:
 
 
 # Flask Server Communication with app.py 
-SERVER_URL = "http://86.17.112.152:5000/api/upload/sensor"
+SERVER_URL = "http://172.20.10.5:5000/api/upload/sensor"
 
 
 def get_overall_status(issues: dict) -> str:  # Type hints
@@ -180,11 +180,11 @@ class DHT22Sensor(Sensor):
         try:
             return {
                 "temperature": self.sensor.temperature,
-                "humidity": self.sensor.humidity
+                "Humidity": self.sensor.humidity
             }
         except RuntimeError as e:
             print(f"DHT22 read error: {e}")
-            return {"temperature": None, "humidity": None}
+            return {"temperature": None, "Humidity": None}
 
 
 class MQ7Sensor(Sensor):
@@ -242,13 +242,13 @@ class AirSensor:
         issues = {}
 
         # Carbon Monoxide overrides everything
-        if data.get("co"):
-            return {"co": "CRITICAL"}
+        if data.get("CO_Reading") is True:
+            return {"CO_Reading": "CRITICAL"}
 
         tvoc = data.get("tvoc_i2c") or data.get("tvoc_uart")
-        co2 = data.get("co2")
+        co2 = data.get("CO2_reading")
         temp = data.get("temperature")
-        hum = data.get("humidity")
+        hum = data.get("Humidity")
 
         if tvoc is not None:
             if tvoc > self.tvoc_critical:
@@ -270,9 +270,9 @@ class AirSensor:
 
         if hum is not None:
             if hum > self.hum_critical:
-                issues["humidity"] = "CRITICAL"
+                issues["Humidity"] = "CRITICAL"
             elif hum > self.hum_poor:
-                issues["humidity"] = "POOR"
+                issues["Humidity"] = "POOR"
 
         return issues
 
@@ -282,7 +282,7 @@ class AirSensor:
 
 if __name__ == "__main__":
     try:
-        mqtt_client = MQTTPublisher()  # Initialize MQTT Publisher
+        mqtt_client = MQTTPublisher()  # Initialie MQTT Publisher
         manager = SensorManager() # Create Sensor Manager and add all sensors
 
         manager.add_sensor(TVOCSensor()) # TVOC sensor using UART
@@ -304,7 +304,7 @@ if __name__ == "__main__":
             payload = {
                 "Pi_ID": 1,
                 "temperature": readings.get("temperature"),
-                "humidity": readings.get("humidity"),
+                "Humidity": readings.get("Humidity"),
                 "co2": readings.get("co2"),
                 "co": readings.get("co"),
                 "tvoc": readings.get("tvoc_i2c") or readings.get("tvoc_uart"),
@@ -312,7 +312,11 @@ if __name__ == "__main__":
                 "issues": issues,
             }
 
-            # Send to server 
+            
+            # Send to server (HTTP) 
+            send_to_server(payload)
+            
+            #Send to MQTT 
             mqtt_client.publish(payload) 
 
             # Local alert (optional)
