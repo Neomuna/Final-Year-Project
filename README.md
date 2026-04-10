@@ -67,10 +67,17 @@ If nothing shows it’s fixed
 run: exit() 
 
 Then install all the packages and libraries again. Other libraries are available and terminal or cmd will display an error if a package is missing: 
+
 pip install adafruit-blinka
+
 pip install adafruit-circuitpython-sgp30
+
 pip install adafruit-circuitpython-dht
+
 pip install flask
+
 pip install paho-mqtt
+
 pip install gpiozero
+
 pip install flask
