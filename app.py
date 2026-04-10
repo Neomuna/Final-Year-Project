@@ -23,6 +23,8 @@ export MQTT_PORT=1883
 export MQTT_TOPIC=sensors/air_quality
 """ 
 
+from xmlrpc import client
+
 from flask import Flask, request, jsonify, render_template
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, timezone 
@@ -47,15 +49,13 @@ app.config['SQLALCHEMY_DATABASE_URI'] = (
 )
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False  # To suppress warning
 
-
-
 # MQTT Listener to receive data from sensors and save to database
 def mqtt_listener():
-    broker = os.getenv("MQTT_BROKER", "0.0.0.0")
-    port = int(os.getenv("MQTT_PORT", 1883))
-    topic = os.getenv("MQTT_TOPIC", "sensors/air_quality")
+    broker = "YOUR_CLUSTER_URL"
+    port = 8883
+    topic = "sensors/air_quality"
 
-    def on_connect(client, userdata, flags, rc):
+    def on_connect(client, userdata, flags, rc, properties=None):
         # Check connection status code
         if rc == 0:
             print("Connected to MQTT Broker")
@@ -101,7 +101,9 @@ def mqtt_listener():
             print(f"Error processing sensor data: {e}")
             db.session.rollback()  # Rollback failed transaction to prevent locked state
 
-    client = mqtt.Client()
+    client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+    client.username_pw_set("Bear2712", "Ferrari812*")
+    client.tls_set()
     client.on_connect = on_connect
     client.on_message = on_message
 
