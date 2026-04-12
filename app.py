@@ -4,7 +4,7 @@
 
 # Flask program for database 
 # Already installed: !pip install flask
-# Alreadt installeld: !pip install -U Flask-SQLAlchemy
+# Already installed: !pip install -U Flask-SQLAlchemy
 # pip install mysql-connector-python 
 # pip install PyMySQL
 
@@ -23,7 +23,6 @@ export MQTT_PORT=1883
 export MQTT_TOPIC=sensors/air_quality
 """ 
 
-from xmlrpc import client
 
 from flask import Flask, request, jsonify, render_template
 from flask_sqlalchemy import SQLAlchemy
@@ -51,7 +50,7 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False  # To suppress warning
 
 # MQTT Listener to receive data from sensors and save to database
 def mqtt_listener():
-    broker = "YOUR_CLUSTER_URL"
+    broker = "My number url goes here" # HiveMQ Cloud broker
     port = 8883
     topic = "sensors/air_quality"
 
@@ -73,10 +72,10 @@ def mqtt_listener():
                 Pi_ID=data.get("Pi_ID"),
                 Temperature=data.get("Temperature"),
                 Humidity=data.get("Humidity"),
-                CO2_reading=data.get("co2"),
-                CO_Reading=data.get("co"),
+                CO2_reading=data.get("CO2_reading"),
+                CO_Reading=data.get("CO_Reading"),
                 TVOC=data.get("TVOC"),
-                Air_Quality_Status=data.get("status"),
+                Air_Quality_Status=data.get("Air_Quality_Status"),
             )
 
             # Save reading
@@ -269,10 +268,10 @@ def upload_sensor():
     )
 
     # Auto-generate alert
-    if data.get("status") in ["POOR", "CRITICAL"]:
+    if data.get("Air_Quality_Status") in ["POOR", "CRITICAL"]:
         alert = Alerts(
         Pi_ID=data.get("Pi_ID"),
-        Message_Alert=f"Air quality {data.get('status')}: {data.get('issues')}"
+        Message_Alert=f"Air quality {data.get('Air_Quality_Status')}: {data.get('Issues')}"
     )
     save(alert)
     err = save(reading)       # Call save, catch any error it returns
