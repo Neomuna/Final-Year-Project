@@ -101,7 +101,7 @@ def mqtt_listener():
             db.session.rollback()  # Rollback failed transaction to prevent locked state
 
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
-    client.username_pw_set("Bear2712", "Ferrari812*")
+    client.username_pw_set("MyUsername", "MyPassword")  # Set MQTT credentials
     client.tls_set()
     client.on_connect = on_connect
     client.on_message = on_message
