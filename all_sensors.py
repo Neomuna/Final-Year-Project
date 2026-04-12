@@ -1,5 +1,6 @@
 # Unified Sensor System for Raspberry Pi (Refactored)
 # This program has been refactored by CoPilot and myself. Fixing a few secuity issues and improving code structure. 
+# Unused imports have been left for MQTT and Flask integration
 import time
 import serial
 import board
@@ -25,21 +26,30 @@ export MQTT_TOPIC=sensors/air_quality
 # MQTT Publisher Class: This is the publisher part of the server 
 class MQTTPublisher:
     def __init__(self):
-        self.broker = os.getenv("MQTT_BROKER", "192.168.1.100")
-        self.port = int(os.getenv("MQTT_PORT", 1883))
-        self.topic = os.getenv("MQTT_TOPIC", "sensors/air_quality")
+        self.broker = "My URL"   
+        self.port = 8883                  
+        self.topic = "sensors/air_quality"
 
-        self.client = mqtt.Client()
-        self.client.connect(self.broker, self.port, 60)
+        self.client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
 
-    def publish(self, payload: dict) -> None:  # Type hints for parameters
-        """Publish sensor data to MQTT broker."""
+        # Add authentication
+        self.client.username_pw_set("My Username", "My Password")
+
+        # Enable TLS for secure connection
+        self.client.tls_set()
+
+        try:
+            self.client.connect(self.broker, self.port, 60)
+            print(f"Connected to HiveMQ broker at {self.broker}")
+        except Exception as e:
+            print(f"MQTT connection failed: {e}")
+        
+    def publish(self, payload: dict):
         try:
             self.client.publish(self.topic, json.dumps(payload))
-            print("Published to MQTT")
+            print("Published:", payload)
         except Exception as e:
-            print(f"MQTT error: {e}")
-
+            print(f"Publish failed: {e}")
 
 # Base Sensor Class
 class Sensor:
@@ -50,6 +60,7 @@ class Sensor:
         raise NotImplementedError
 
 
+# Air Quality Evaluation Logic 
 def get_overall_status(issues: dict) -> str:  # Type hints
     """Convert issues dict into a single status string."""
     if not issues:
@@ -57,6 +68,14 @@ def get_overall_status(issues: dict) -> str:  # Type hints
     if "CRITICAL" in issues.values():
         return "CRITICAL"
     return "POOR"
+
+# MQTT Publisher Class: This is the publisher part of the server
+def publish(self, payload: dict):
+    try:
+        self.client.publish(self.topic, json.dumps(payload))
+        print("Published:", payload)
+    except Exception as e:
+        print(f"Publish failed: {e}") 
 
 
 # Sensor Implementations
@@ -162,7 +181,7 @@ class DHT22Sensor(Sensor):
         """Read temperature and humidity. Returns dict with sensor readings or None values."""
         try:
             return {
-                "Temperature": self.sensor.Temperature,
+                "Temperature": self.sensor.temperature,
                 "Humidity": self.sensor.humidity
             }
         except RuntimeError as e:
@@ -288,13 +307,13 @@ if __name__ == "__main__":
                 "Pi_ID": 1,
                 "Temperature": readings.get("Temperature"),
                 "Humidity": readings.get("Humidity"),
-                "co2": readings.get("co2"),
-                "co": readings.get("co"),
-                "tvoc": readings.get("tvoc_i2c") or readings.get("tvoc_uart"),
+                "CO2_reading": readings.get("co2"),
+                "CO_Reading": 1 if readings.get("co") else 0,
+                "TVOC": readings.get("tvoc_i2c") or readings.get("tvoc_uart"),
                 "status": status,
                 "issues": issues,
             }
-
+ 
 
             
             #Send to MQTT 
@@ -335,4 +354,5 @@ if __name__ == "__main__":
 
 
 # Things to do:
-# Check over co and co2 naming consistency between sensors and Flask app. 
+# Check over co and co2 naming consistency between sensors and Flask app.
+# Add TVOC to database  
