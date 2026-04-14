@@ -12,9 +12,9 @@ This is a living document and will be updated over the coming days and weeks.
 This IOT air quality device is designed to be placed in a room and used to measure the air quailty. It then ranks the air quality to air standards ratings and alerts the people in the room if they pass those hardcoded thresholds. 
 
  
-###Overview: flask app,py, all_sensors.py and open database 
+## Overview: flask app,py, all_sensors.py and open database 
 
-To start: 
+### To start: 
 Ensure all are running on the same network. Use a hotspot for this. 
 
 ssh the IP address
