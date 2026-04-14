@@ -9,8 +9,6 @@ Only the database and env files have been excluded for security and privacy reas
 This is a living document and will be updated over the coming days and weeks. 
 
 
-
-
 This IOT air quality device is designed to be placed in a room and used to measure the air quailty. It then ranks the air quality to air standards ratings and alerts the people in the room if they pass those hardcoded thresholds. 
 
  
@@ -37,34 +35,34 @@ python3 -m venv venv
 Activate venv 
 source venv/bin/activate
 
-### Next step is if lgpio doesn't run 
+## Next step is if lgpio doesn't run 
 
-If the venv has been opened run: 
+### If the venv has been opened run: 
 
 deactivate
 
-Then run: 
+### Then run: 
 
 rm -rf ~/venv
 
 
-Recreate the system packages: 
+###Recreate the system packages: 
 
 python3 -m venv --system-site-packages ~/venv
 
 
-Then run: 
+### Then run: 
 
 source ~/venv/bin/activate
 
-Next test if lpgio is visible: 
+### Next test if lpgio is visible: 
 
 python
 
->import lgpio 
+import lgpio 
 
 
-If nothing shows it’s fixed 
+### If nothing shows it’s fixed 
 
 run: exit() 
 
@@ -85,7 +83,7 @@ pip install gpiozero
 pip install flask
 
 
-Run:
+### Run:
 
 python all_sensors.py
 
