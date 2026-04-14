@@ -14,8 +14,8 @@ This IOT air quality device is designed to be placed in a room and used to measu
  
 ## Overview: flask app,py, all_sensors.py and open database 
 
-### To start: 
-Ensure all are running on the same network. Use a hotspot for this. 
+## To start: 
+### Ensure all are running on the same network. Use a hotspot for this. 
 
 ssh the IP address
 
@@ -29,7 +29,7 @@ sudo apt update
 
 sudo apt install python3-venv
 
-Opens virtual environment:
+### Opens virtual environment:
 
 python3 -m venv venv
 
