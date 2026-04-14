@@ -19,7 +19,7 @@ This IOT air quality device is designed to be placed in a room and used to measu
 To start: 
 Ensure all are running on the same network. Use a hotspot for this. 
 ssh the IP address
->> enter the password
+/enter the password
 
 # How to run! 
 
