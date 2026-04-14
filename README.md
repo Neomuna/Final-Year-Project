@@ -21,9 +21,9 @@ Ensure all are running on the same network. Use a hotspot for this.
 ssh the IP address
 >> enter the password
 
-How to run! 
+# How to run! 
 
-On terminal or cmd using the Pi(all_sensors.py):
+# On terminal or cmd using the Pi(all_sensors.py):
 
 sudo apt update
 sudo apt install python3-venv
@@ -32,7 +32,7 @@ Opens virtual environment:
 
 python3 -m venv venv
 
-# Activate venv 
+Activate venv 
 source venv/bin/activate
 
 ////////////////////////////////////////////
@@ -86,7 +86,7 @@ pip install flask
 If you want to check what's been installed run: pip list 
 This will show all dependencies
 
-For installing the app.py on the Pi:
+# For installing the app.py on the Pi:
 
 Open a new cmd or terminal:
 
