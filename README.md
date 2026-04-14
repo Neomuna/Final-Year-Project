@@ -82,6 +82,8 @@ pip install paho-mqtt
 
 pip install gpiozero
 
+pip install board 
+
 pip install flask
 
 
