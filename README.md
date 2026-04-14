@@ -26,6 +26,7 @@ enter the password
 ## On terminal or cmd using the Pi(all_sensors.py):
 
 sudo apt update
+
 sudo apt install python3-venv
 
 Opens virtual environment:
@@ -33,6 +34,7 @@ Opens virtual environment:
 python3 -m venv venv
 
 Activate venv 
+
 source venv/bin/activate
 
 ## Next step is if lgpio doesn't run 
