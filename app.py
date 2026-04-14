@@ -35,8 +35,6 @@ from typing import Tuple, Any, Dict, Optional
 
 app = Flask(__name__) # Initialise Flask app
 
-db = SQLAlchemy(app) # Initialise SQLAlchemy
-
 
 #  Database Config - Using environment variables for security
 app.config['SQLALCHEMY_DATABASE_URI'] = (
@@ -47,6 +45,8 @@ app.config['SQLALCHEMY_DATABASE_URI'] = (
     f"{os.getenv('DB_NAME', 'Final_Year_Project')}"
 )
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False  # To suppress warning
+db = SQLAlchemy(app) # Initialise SQLAlchemy
+
 
 # MQTT Listener to receive data from sensors and save to database
 def mqtt_listener():
