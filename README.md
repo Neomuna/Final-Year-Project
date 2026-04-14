@@ -13,13 +13,13 @@ This is a living document and will be updated over the coming days and weeks.
 
 This IOT air quality device is designed to be placed in a room and used to measure the air quailty. It then ranks the air quality to air standards ratings and alerts the people in the room if they pass those hardcoded thresholds. 
 
-
+ 
+ Overview: flask app,py, all_sensors.py and open database 
 
 To start: 
-ssh  the IP address
+Ensure all are running on the same network. Use a hotspot for this. 
+ssh the IP address
 >> enter the password
-
-Run flask app,py and open database 
 
 How to run! 
 
@@ -81,3 +81,32 @@ pip install paho-mqtt
 pip install gpiozero
 
 pip install flask
+
+
+If you want to check what's been installed run: pip list 
+This will show all dependencies
+
+For installing the app.py on the Pi:
+
+Open a new cmd or terminal:
+
+sudo apt update
+sudo apt install python3-venv
+
+python3 -m venv venv
+
+source venv/bin/activate
+
+Then run:
+
+pip install flask
+
+pip install -U Flask-SQLAlchemy
+
+pip install mysql-connector-python 
+
+pip install PyMySQL
+
+If you want to check what's been installed run: pip list 
+
+This will show all dependencies
