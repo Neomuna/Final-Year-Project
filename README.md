@@ -46,7 +46,7 @@ deactivate
 rm -rf ~/venv
 
 
-###Recreate the system packages: 
+### Recreate the system packages: 
 
 python3 -m venv --system-site-packages ~/venv
 
@@ -66,7 +66,7 @@ import lgpio
 
 run: exit() 
 
-Then install all the packages and libraries again. Other libraries are available and terminal or cmd will display an error if a package is missing: 
+### Then install all the packages and libraries again. Other libraries are available and terminal or cmd will display an error if a package is missing: 
 
 pip install adafruit-blinka
 
