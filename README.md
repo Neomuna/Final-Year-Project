@@ -59,7 +59,7 @@ Next test if lpgio is visible:
 
 python
 
->>>import lgpio 
+>import lgpio 
 
 
 If nothing shows it’s fixed 
