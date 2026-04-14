@@ -37,7 +37,7 @@ python3 -m venv venv
 Activate venv 
 source venv/bin/activate
 
-////////////////////////////////////////////
+### Next step is if lgpio doesn't run 
 
 If the venv has been opened run: 
 
