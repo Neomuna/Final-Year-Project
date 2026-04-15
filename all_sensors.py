@@ -1,5 +1,5 @@
 # Unified Sensor System for Raspberry Pi (Refactored)
-# This program has been refactored by CoPilot and myself. Fixing a few secuity issues and improving code structure. 
+# This program has been refactored by CoPilot and myself. Fixing a few secuity issues, improving code structure and error handling. 
 # Unused imports have been left for MQTT and Flask integration
 import time
 import serial
@@ -55,19 +55,19 @@ class MQTTPublisher:
 class Sensor:
     """Base class for all sensors."""
 
-    def read(self) -> dict:
+    def read(self) -> dict[str, float]:
         """Return sensor data as a dictionary."""
         raise NotImplementedError
 
 
 # Air Quality Evaluation Logic 
-def get_overall_status(issues: dict) -> str:  # Type hints
+def get_overall_status(issues: dict) -> list[str]:  # Type hints
     """Convert issues dict into a single status string."""
     if not issues:
-        return "GOOD"
+        return ["GOOD"]
     if "CRITICAL" in issues.values():
-        return "CRITICAL"
-    return "POOR"
+        return ["CRITICAL"]
+    return ["POOR"]
  
 # Sensor Implementations
 
@@ -80,7 +80,7 @@ class TVOCSensor(Sensor):
         self.command = bytes([0x01, 0x03, 0x00, 0x00, 0x00, 0x00, 0x01, 0x84, 0x0A]) # Command to read TVOC value 
         self.value: Optional[int] = None # Type hint for TVOC value
 
-    def read(self) -> dict: 
+    def read(self) -> dict[str, float]: 
         """Read TVOC value from sensor via UART. Returns dict with 'tvoc_uart' key or None."""
         try:
             # Lazy initialisation - only open port when needed
@@ -146,7 +146,7 @@ class SGP30Sensor(Sensor):
             print(f"CRITICAL: Failed to initialise I2C bus for SGP30: {e}")
             self.sensor = None
 
-    def read(self) -> dict:
+    def read(self) -> dict[str, float]:  # Type hint for return type
         """Read TVOC and CO2 from sensor. Returns dict with 'tvoc_i2c' and 'co2' keys."""
         if self.sensor is None:
             # Sensor failed to initialise (logged in __init__)
@@ -162,22 +162,23 @@ class SGP30Sensor(Sensor):
             return {"tvoc_i2c": None, "co2": None}
 
 
-class DHT22Sensor(Sensor):
+class DHT22Sensor(Sensor): 
     """Temperature and Humidity Sensor."""
 
     def __init__(self):
         self.sensor = Adafruit_DHT.DHT22
-        self.pin = board.D4 
+        self.pin = 4  # GPIO4 (BCM numbering)
 
-    def read(self) -> dict:  # Type hint for return
-        """Read temperature and humidity. Returns dict with sensor readings or None values."""
-        try:
+    def read(self) -> dict[str, float]:  # Type hint for return type
+        humidity, temperature = Adafruit_DHT.read_retry(self.sensor, self.pin)
+
+        if humidity is not None and temperature is not None:
             return {
-                "Temperature": self.sensor.temperature,
-                "Humidity": self.sensor.humidity
+                "Temperature": round(temperature, 2),
+                "Humidity": round(humidity, 2)
             }
-        except RuntimeError as e:
-            print(f"DHT22 read error: {e}")
+        else:
+            print("DHT22 read failed")
             return {"Temperature": None, "Humidity": None}
 
 
@@ -187,7 +188,7 @@ class MQ7Sensor(Sensor):
     def __init__(self):
         self.sensor = DigitalInputDevice(23, pull_up=False) # GPIO pin 23 
 
-    def read(self) -> dict:  # Type hint for return
+    def read(self) -> dict[str, bool]:  # Type hint for return type
         """Read CO sensor status. Returns dict with 'co' key (True if gas detected)."""
         return {"co": self.sensor.is_active}
 
@@ -203,7 +204,7 @@ class SensorManager:
         """Add a sensor to the manager."""
         self.sensors.append(sensor)
 
-    def read_all(self) -> dict:  # Type hints with return type
+    def read_all(self) -> dict[str, float]:  # Type hints with return type
         """Read all sensors and aggregate data into single dictionary."""
         readings = {} # Aggregate all sensor readings into a single dictionary
 
@@ -231,7 +232,7 @@ class AirSensor:
         self.hum_poor = 60
         self.hum_critical = 75
 
-    def check_air_quality(self, data: dict) -> dict:  # Type hints for parameter and return
+    def check_air_quality(self, data: dict) -> dict[str,]:  # Type hints for parameter and return
         """Check air quality and return dictionary of issues found."""
         issues = {}
 

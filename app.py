@@ -233,7 +233,7 @@ class Alerts(db.Model): # Alerts Model
             "message": self.message  # Updated to match SQL
         }
 
-# Location Model
+# Location Model was dropped due to time contraints and schema design issues, but here it is for completeness
 class Location (db.Model): # Location Model
     __tablename__ = "Location" # Location table
     Location_ID = db.Column(db.Integer, primary_key=True) # Unique ID for each location
@@ -304,6 +304,7 @@ def upload_location(): # Upload location to database
     save(location) # Save location to database
     return jsonify({"status": "location added"}), 201  # Return success response
 
+# Location route was added late and is not fully integrated with Raspberry Pi model due to time constraints and schema design issues, but here it is for completeness
 @app.get("/api/latest/location") # Route to get latest location
 def latest_location(): # Get latest location from database
     location = Location.query.order_by(Location.Location_ID.desc()).first() # Query latest location
