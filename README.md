@@ -76,7 +76,7 @@ pip install adafruit-circuitpython-sgp30
 
 pip install adafruit-circuitpython-dht
 
-pip install flask
+pip install Adafruit_DHT --config-settings="--build-option=--force-pi"
 
 pip install paho-mqtt
 
@@ -85,6 +85,8 @@ pip install gpiozero
 pip install board 
 
 pip install flask
+
+
 
 
 ### Run:
