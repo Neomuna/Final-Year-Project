@@ -4,7 +4,7 @@
 import time
 import serial
 import board
-import adafruit_dht
+import Adafruit_DHT
 import requests 
 from gpiozero import DigitalInputDevice
 import busio
@@ -26,14 +26,14 @@ export MQTT_TOPIC=sensors/air_quality
 # MQTT Publisher Class: This is the publisher part of the server 
 class MQTTPublisher:
     def __init__(self):
-        self.broker = "My URL"   
+        self.broker = "My URL"  # Left blank for security
         self.port = 8883                  
-        self.topic = "sensors/air_quality"
+        self.topic = "sensors/air_quality" 
 
         self.client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
 
         # Add authentication
-        self.client.username_pw_set("My Username", "My Password")
+        self.client.username_pw_set("My Username", "My Password") # Left blank for security
 
         # Enable TLS for secure connection
         self.client.tls_set()
@@ -68,16 +68,7 @@ def get_overall_status(issues: dict) -> str:  # Type hints
     if "CRITICAL" in issues.values():
         return "CRITICAL"
     return "POOR"
-
-# MQTT Publisher Class: This is the publisher part of the server
-def publish(self, payload: dict):
-    try:
-        self.client.publish(self.topic, json.dumps(payload))
-        print("Published:", payload)
-    except Exception as e:
-        print(f"Publish failed: {e}") 
-
-
+ 
 # Sensor Implementations
 
 class TVOCSensor(Sensor):
@@ -86,13 +77,13 @@ class TVOCSensor(Sensor):
     def __init__(self, port: str = "/dev/ttyAMA0"):
         self.port = port
         self.serial: Optional[serial.Serial] = None  # # Type hint for serial port 
-        self.command = bytes([0x01, 0x03, 0x00, 0x00, 0x00, 0x00, 0x01, 0x84, 0x0A])
-        self.value: Optional[int] = None
+        self.command = bytes([0x01, 0x03, 0x00, 0x00, 0x00, 0x00, 0x01, 0x84, 0x0A]) # Command to read TVOC value 
+        self.value: Optional[int] = None # Type hint for TVOC value
 
-    def read(self) -> dict:
+    def read(self) -> dict: 
         """Read TVOC value from sensor via UART. Returns dict with 'tvoc_uart' key or None."""
         try:
-            # Lazy initialization - only open port when needed
+            # Lazy initialisation - only open port when needed
             if self.serial is None or not self.serial.is_open:
                 self.serial = serial.Serial(self.port, 9600, timeout=1)
             
@@ -149,22 +140,22 @@ class SGP30Sensor(Sensor):
                     time.sleep(2)
                     
             if self.sensor is None:
-                print("WARNING: SGP30 sensor failed to initialize after 5 attempts")
+                print("WARNING: SGP30 sensor failed to initialise after 5 attempts")
                 
         except Exception as e:
-            print(f"CRITICAL: Failed to initialize I2C bus for SGP30: {e}")
+            print(f"CRITICAL: Failed to initialise I2C bus for SGP30: {e}")
             self.sensor = None
 
     def read(self) -> dict:
         """Read TVOC and CO2 from sensor. Returns dict with 'tvoc_i2c' and 'co2' keys."""
         if self.sensor is None:
-            # Sensor failed to initialize (logged in __init__)
+            # Sensor failed to initialise (logged in __init__)
             return {"tvoc_i2c": None, "co2": None}
 
         try:
             return {
                 "tvoc_i2c": self.sensor.TVOC,
-                "co2": self.sensor.eCO2
+                "co2": self.sensor.co2
             }
         except Exception as e:  # Log the actual error
             print(f"SGP30 read error: {e}")
@@ -175,7 +166,8 @@ class DHT22Sensor(Sensor):
     """Temperature and Humidity Sensor."""
 
     def __init__(self):
-        self.sensor = adafruit_dht.DHT22(board.D17)
+        self.sensor = Adafruit_DHT.DHT22
+        self.pin = board.D4 
 
     def read(self) -> dict:  # Type hint for return
         """Read temperature and humidity. Returns dict with sensor readings or None values."""
