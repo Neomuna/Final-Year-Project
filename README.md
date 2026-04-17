@@ -86,6 +86,9 @@ pip install board
 
 pip install flask
 
+pip install busio 
+
+pip install serial 
 
 
 
