@@ -11,7 +11,6 @@ This is a living document and will be updated over the coming days and weeks.
 
 This IOT air quality device is designed to be placed in a room and used to measure the air quailty. It then ranks the air quality to air standards ratings and alerts the people in the room if they pass those hardcoded thresholds. 
 
- 
 ## Overview: flask app,py, all_sensors.py and open database 
 
 ## To start: 
@@ -22,16 +21,38 @@ ssh the IP address
 enter the password
 
 # How to run! 
+## On terminal or cmd using the Pi(all_sensors.py) program:
 
-## On terminal or cmd using the Pi(all_sensors.py):
+## Set up Python 3.11.8 This works best with the sensor suite
 
+### Run outside of Venv
 sudo apt update
+sudo apt install -y build-essential libssl-dev zlib1g-dev \
+libncurses5-dev libnss3-dev libsqlite3-dev libreadline-dev \
+libffi-dev libbz2-dev wget
 
-sudo apt install python3-venv
+### Download Python 3.11.8
+cd ~
+wget https://www.python.org/ftp/python/3.11.8/Python-3.11.8.tgz
+tar -xf Python-3.11.8.tgz
+cd Python-3.11.8
 
-### Opens virtual environment:
+### Verify 
+~/python311/bin/python3.11 --version
 
-python3 -m venv venv
+### Create Venv
+cd ~/Documents/sensor_project
+
+~/python311/bin/python3.11 -m venv venv311
+
+### Activate it 
+
+source venv311/bin/activate
+
+### Install all libraries 
+pip install --upgrade pip
+pip install adafruit-blinka adafruit-circuitpython-dht adafruit-circuitpython-sgp30 paho-mqtt flask
+
 
 ### Activate venv 
 
