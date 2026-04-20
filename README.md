@@ -23,7 +23,7 @@ enter the password
 # How to run! 
 ## On terminal or cmd using the Pi(all_sensors.py) program:
 
-## Set up Python 3.11.8 This works best with the sensor suite
+## Set up Python 3.11.8. This works best with the sensor suite
 
 ### Run outside of Venv
 sudo apt update
@@ -58,7 +58,8 @@ pip install adafruit-blinka adafruit-circuitpython-dht adafruit-circuitpython-sg
 
 source venv/bin/activate
 
-## Next step is if lgpio doesn't run 
+## Next step is if lgpio doesn't run. (Only run if lgpio doesn't work). 
+## Note this might break when using Python 3.11.8 
 
 ### If the venv has been opened run: 
 
