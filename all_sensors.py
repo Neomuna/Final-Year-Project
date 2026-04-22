@@ -1,10 +1,11 @@
 # Unified Sensor System for Raspberry Pi (Refactored)
 # This program has been refactored by CoPilot and myself. Fixing a few secuity issues, improving code structure and error handling. 
+# I've removed TVOCs from the UART sensor as it was unreliable and not essential. 
 # Unused imports have been left for MQTT and Flask integration
 import time
 import serial
 import board
-import Adafruit_DHT
+import adafruit_dht
 import requests 
 from gpiozero import DigitalInputDevice
 import busio
@@ -26,14 +27,19 @@ export MQTT_TOPIC=sensors/air_quality
 # MQTT Publisher Class: This is the publisher part of the server 
 class MQTTPublisher:
     def __init__(self):
-        self.broker = "My URL"  # Left blank for security
+        # MQTT connection details from environment variables 
+        self.broker = os.environ["MQTT_BROKER"]
+        self.client.username_pw_set(
+            os.environ["MQTT_USERNAME"], # Left blank for security
+            os.environ["MQTT_PASSWORD"]  # Left blank for security
+        )
+        
+  # Left blank for security
         self.port = 8883                  
         self.topic = "sensors/air_quality" 
 
         self.client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
 
-        # Add authentication
-        self.client.username_pw_set("My Username", "My Password") # Left blank for security
 
         # Enable TLS for secure connection
         self.client.tls_set()
@@ -71,46 +77,6 @@ def get_overall_status(issues: dict) -> list[str]:  # Type hints
  
 # Sensor Implementations
 
-class TVOCSensor(Sensor):
-    """TVOC sensor using UART communication."""
-
-    def __init__(self, port: str = "/dev/ttyAMA0"):
-        self.port = port
-        self.serial: Optional[serial.Serial] = None  # # Type hint for serial port 
-        self.command = bytes([0x01, 0x03, 0x00, 0x00, 0x00, 0x00, 0x01, 0x84, 0x0A]) # Command to read TVOC value 
-        self.value: Optional[int] = None # Type hint for TVOC value
-
-    def read(self) -> dict[str, float]: 
-        """Read TVOC value from sensor via UART. Returns dict with 'tvoc_uart' key or None."""
-        try:
-            # Lazy initialisation - only open port when needed
-            if self.serial is None or not self.serial.is_open:
-                self.serial = serial.Serial(self.port, 9600, timeout=1)
-            
-            self.serial.write(self.command)
-            time.sleep(0.1)
-            data = self.serial.read(7)
-
-            if len(data) == 7:
-                self.value = (data[3] << 8) | data[4]
-            else:
-                self.value = None
-
-        except serial.SerialException as e:  # More specific error handling
-            print(f"TVOC sensor error: {e}")
-            self.value = None
-            if self.serial:  # Close on error to free port
-                self.serial.close()
-                self.serial = None  # Reset so it retries next time
-
-        return {"tvoc_uart": self.value}
-    
-    def __del__(self): # Destructor to ensure serial port is closed
-        """Ensure serial port is closed on cleanup."""
-        if self.serial and self.serial.is_open: # Check if serial port is open before trying to close
-            self.serial.close()
-
-
 class SGP30Sensor(Sensor):
     """TVOC and CO2 sensor using I2C communication."""
     
@@ -119,24 +85,24 @@ class SGP30Sensor(Sensor):
         self.sensor: Optional[adafruit_sgp30.Adafruit_SGP30] = None
         
         try:
-            i2c = busio.I2C(board.SCL, board.SDA)
+            i2c = busio.I2C(board.SCL, board.SDA) # Initialize I2C bus
             
-            while not i2c.try_lock():
+            while not i2c.try_lock(): # Wait for I2C bus to be available
                 time.sleep(0.1)
-            i2c.unlock()
+            i2c.unlock() # Release the bus after checking
             
             time.sleep(2)
             
             # Try to initialize sensor up to 5 times
             for attempt in range(5):
                 try:
-                    self.sensor = adafruit_sgp30.Adafruit_SGP30(i2c)
-                    self.sensor.iaq_init()
+                    self.sensor = adafruit_sgp30.Adafruit_SGP30(i2c) # Attempt to initialize sensor
+                    self.sensor.iaq_init() # Initialize IAQ algorithm
                     time.sleep(1)
                     print("SGP30 sensor initialised successfully")
                     break
-                except Exception as e:
-                    print(f"SGP30 init attempt {attempt + 1}/5 failed: {e}")
+                except Exception as e: 
+                    print(f"SGP30 init attempt {attempt + 1}/5 failed: {e}") # Log the actual error for debugging
                     time.sleep(2)
                     
             if self.sensor is None:
@@ -155,32 +121,29 @@ class SGP30Sensor(Sensor):
         try:
             return {
                 "tvoc_i2c": self.sensor.TVOC,
-                "co2": self.sensor.co2
+                "co2": self.sensor.eCO2
             }
         except Exception as e:  # Log the actual error
             print(f"SGP30 read error: {e}")
             return {"tvoc_i2c": None, "co2": None}
 
-
-class DHT22Sensor(Sensor): 
-    """Temperature and Humidity Sensor."""
-
+class DHT22Sensor(Sensor):
     def __init__(self):
-        self.sensor = Adafruit_DHT.DHT22
-        self.pin = 4  # GPIO4 (BCM numbering)
+        self.sensor = adafruit_dht.DHT22(board.D4)
 
     def read(self) -> dict[str, float]:  # Type hint for return type
-        humidity, temperature = Adafruit_DHT.read_retry(self.sensor, self.pin)
+        try:
+            temperature = self.sensor.temperature
+            humidity = self.sensor.humidity
 
-        if humidity is not None and temperature is not None:
             return {
-                "Temperature": round(temperature, 2),
-                "Humidity": round(humidity, 2)
+                "Temperature": round(temperature, 2) if temperature else None, # Round to 2 decimal places for consistency
+                "Humidity": round(humidity, 2) if humidity else None # Round to 2 decimal places for consistency
             }
-        else:
-            print("DHT22 read failed")
-            return {"Temperature": None, "Humidity": None}
 
+        except RuntimeError as e:
+            print(f"DHT22 read error: {e}")
+            return {"Temperature": None, "Humidity": None}
 
 class MQ7Sensor(Sensor):
     """Carbon Monoxide Sensor (Digital Output)."""
@@ -219,28 +182,28 @@ class SensorManager:
 class AirSensor:
     """Evaluates air quality based on sensor data. [1][2][3][4]"""
 
-    def __init__(self):
-        self.tvoc_poor = 300
-        self.tvoc_critical = 600
+    def __init__(self): 
+        self.tvoc_poor = 300 # Poor air quality threshold for TVOC
+        self.tvoc_critical = 600 # Critical air quality threshold for TVOC
 
-        self.co2_poor = 1000
-        self.co2_critical = 2000
+        self.co2_poor = 1000 # Poor air quality threshold for CO2
+        self.co2_critical = 2000 # Critical air quality threshold for CO2
 
-        self.temp_poor = 25
-        self.temp_critical = 30
+        self.temp_poor = 25 # Poor air quality threshold for temperature (°C)
+        self.temp_critical = 30 # Critical air quality threshold for temperature (°C)
 
-        self.hum_poor = 60
-        self.hum_critical = 75
+        self.hum_poor = 60 # Poor air quality threshold for humidity (%)
+        self.hum_critical = 75 # Critical air quality threshold for humidity (%)
 
     def check_air_quality(self, data: dict) -> dict[str,]:  # Type hints for parameter and return
         """Check air quality and return dictionary of issues found."""
         issues = {}
 
         # Carbon Monoxide overrides everything
-        if data.get("co") is True:
+        if data.get("co") is True: # If CO sensor detects gas, it's considerd critical regardless of other readings
             return {"co": "CRITICAL"}
 
-        tvoc = data.get("tvoc_i2c") or data.get("tvoc_uart")
+        tvoc = data.get("tvoc_i2c") # TVOC reading from I2C sensor
         co2 = data.get("co2")
         temp = data.get("Temperature")
         hum = data.get("Humidity")
@@ -280,7 +243,7 @@ if __name__ == "__main__":
         mqtt_client = MQTTPublisher()  # Initialie MQTT Publisher
         manager = SensorManager() # Create Sensor Manager and add all sensors
 
-        manager.add_sensor(TVOCSensor()) # TVOC sensor using UART
+
         manager.add_sensor(DHT22Sensor()) # Temperature and Humidity sensor
         manager.add_sensor(MQ7Sensor()) # Carbon Monoxide sensor (digital output)
         manager.add_sensor(SGP30Sensor()) # TVOC and CO2 sensor using I2C
@@ -302,13 +265,10 @@ if __name__ == "__main__":
                 "Humidity": readings.get("Humidity"),
                 "CO2_reading": readings.get("co2"),
                 "CO_Reading": 1 if readings.get("co") else 0,
-                "TVOC": readings.get("tvoc_i2c") or readings.get("tvoc_uart"),
                 "status": status,
                 "issues": issues,
             }
  
-
-            
             #Send to MQTT 
             mqtt_client.publish(payload) 
 
