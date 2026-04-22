@@ -25,23 +25,20 @@ export MQTT_TOPIC=sensors/air_quality
 
 
 # MQTT Publisher Class: This is the publisher part of the server 
+# What it should be - one flat class
 class MQTTPublisher:
     def __init__(self):
-        # MQTT connection details from environment variables 
         self.broker = os.environ["MQTT_BROKER"]
-        self.client.username_pw_set(
-            os.environ["MQTT_USERNAME"], # Left blank for security
-            os.environ["MQTT_PASSWORD"]  # Left blank for security
-        )
-        
-  # Left blank for security
-        self.port = 8883                  
-        self.topic = "sensors/air_quality" 
+        self.port   = int(os.environ.get("MQTT_PORT", 8883))
+        self.topic  = os.environ.get("Raspberry_Pi Air Sensor", "sensors/air_quality")
 
         self.client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
 
+        self.client.username_pw_set(
+            os.environ["MQTT_USERNAME"],
+            os.environ["MQTT_PASSWORD"]
+        )
 
-        # Enable TLS for secure connection
         self.client.tls_set()
 
         try:
@@ -49,14 +46,13 @@ class MQTTPublisher:
             print(f"Connected to HiveMQ broker at {self.broker}")
         except Exception as e:
             print(f"MQTT connection failed: {e}")
-        
+
     def publish(self, payload: dict):
         try:
             self.client.publish(self.topic, json.dumps(payload))
             print("Published:", payload)
         except Exception as e:
             print(f"Publish failed: {e}")
-
 # Base Sensor Class
 class Sensor:
     """Base class for all sensors."""
@@ -308,4 +304,4 @@ if __name__ == "__main__":
 
 # Things to do:
 # Check over co and co2 naming consistency between sensors and Flask app.
-# Add TVOC to database  
+     
