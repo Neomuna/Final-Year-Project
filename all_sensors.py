@@ -28,31 +28,31 @@ export MQTT_TOPIC=sensors/air_quality
 # What it should be - one flat class
 class MQTTPublisher:
     def __init__(self):
-        self.broker = os.environ["MQTT_BROKER"]
-        self.port   = int(os.environ.get("MQTT_PORT", 8883))
-        self.topic  = os.environ.get("Raspberry_Pi Air Sensor", "sensors/air_quality")
+        self.broker = os.environ["MQTT_BROKER"] # Get broker URL from environment variable. Left for security reasons. 
+        self.port   = int(os.environ.get("MQTT_PORT", 8883)) # Left for seciurity reasons. 
+        self.topic  = os.environ.get("Raspberry_Pi Air Sensor", "sensors/air_quality") 
 
         self.client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
 
         self.client.username_pw_set(
-            os.environ["MQTT_USERNAME"],
-            os.environ["MQTT_PASSWORD"]
+            os.environ["MQTT_USERNAME"], # Left for security reasons.
+            os.environ["MQTT_PASSWORD"] # Left for security reasons. 
         )
 
         self.client.tls_set()
 
         try:
-            self.client.connect(self.broker, self.port, 60)
-            print(f"Connected to HiveMQ broker at {self.broker}")
-        except Exception as e:
-            print(f"MQTT connection failed: {e}")
+            self.client.connect(self.broker, self.port, 60) # Connect to MQTT broker with a 60 second keepalive
+            print(f"Connected to HiveMQ broker at {self.broker}") # Log successful connection
+        except Exception as e: 
+            print(f"MQTT connection failed: {e}") 
 
-    def publish(self, payload: dict):
+    def publish(self, payload: dict): # Type hint for payload parameter
         try:
-            self.client.publish(self.topic, json.dumps(payload))
-            print("Published:", payload)
+            self.client.publish(self.topic, json.dumps(payload)) # Publish the payload as a JSON string to the specified MQTT topic
+            print("Published:", payload) # Log the published payload for debugging
         except Exception as e:
-            print(f"Publish failed: {e}")
+            print(f"Publish failed: {e}") # Log any exceptions that occur during publishing for debugging purposes
 # Base Sensor Class
 class Sensor:
     """Base class for all sensors."""
