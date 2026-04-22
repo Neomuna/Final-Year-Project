@@ -93,18 +93,18 @@ class SGP30Sensor(Sensor):
 
     print("SGP30 initialised")
 
-    def read(self) -> dict[str, float]:  # Type hint for return type
-        """Read TVOC and CO2 from sensor. Returns dict with 'tvoc_i2c' and 'co2' keys."""
+    def read(self):
         if self.sensor is None:
-            # Sensor failed to initialise (logged in __init__)
             return {"tvoc_i2c": None, "co2": None}
 
         try:
+            self.sensor.iaq_measure()   
+
             return {
                 "tvoc_i2c": self.sensor.TVOC,
                 "co2": self.sensor.eCO2
             }
-        except Exception as e:  # Log the actual error
+        except Exception as e:
             print(f"SGP30 read error: {e}")
             return {"tvoc_i2c": None, "co2": None}
 
@@ -289,4 +289,5 @@ if __name__ == "__main__":
 
 # Things to do:
 # Check over co and co2 naming consistency between sensors and Flask app.
+# Rejoice! SGP30 is working!
      
