@@ -14,6 +14,9 @@ from typing import Optional
 import paho.mqtt.client as mqtt
 import json
 import os
+from datetime import datetime, timezone
+
+
 
 
 # Run the following commands in terminal to set MQTT environment variables before running the program:
@@ -30,7 +33,7 @@ class MQTTPublisher:
     def __init__(self):
         self.broker = os.environ["MQTT_BROKER"] # Get broker URL from environment variable. Left for security reasons. 
         self.port   = int(os.environ.get("MQTT_PORT", 8883)) # Left for seciurity reasons. 
-        self.topic  = os.environ.get("Raspberry_Pi Air Sensor", "sensors/air_quality") 
+        self.topic  = os.environ.get("MQTT_TOPIC", "sensors/air_quality") 
 
         self.client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
 
@@ -225,8 +228,7 @@ if __name__ == "__main__":
         manager = SensorManager() # Create Sensor Manager and add all sensors
 
 
-        manager.add_sensor(DHT22Sensor()) # Temperature and Humidity sensor
-        manager.add_sensor(MQ7Sensor()) # Carbon Monoxide sensor (digital output)
+        # Add sensors to the manager. Other sensors removed for sole purpose of demo of IOT functionality.
         manager.add_sensor(SGP30Sensor()) # TVOC and CO2 sensor using I2C
 
         air_sensor = AirSensor() # Air quality evaluation logic
@@ -246,10 +248,14 @@ if __name__ == "__main__":
                 "Humidity": readings.get("Humidity"),
                 "CO2_reading": readings.get("co2"),
                 "CO_Reading": 1 if readings.get("co") else 0,
-                "status": status,
+                "Air_Quality_Status": status[0],
                 "issues": issues,
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }
  
+
+
+
             #Send to MQTT 
             mqtt_client.publish(payload) 
 
