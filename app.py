@@ -78,9 +78,13 @@ def mqtt_listener():
                 Air_Quality_Status=data.get("Air_Quality_Status"),
             )
 
+
+            # Leaving this in case of changes later 
+            """
             # Save reading
             db.session.add(reading)
-
+            """
+            
             # Alerts
             if data.get("Air_Quality_Status") in ["POOR", "CRITICAL"]:
                 alert = Alerts(
@@ -92,7 +96,11 @@ def mqtt_listener():
                 )
                 db.session.add(alert)
 
-            db.session.commit()
+                # Save both reading and alert in a single transaction. From Save reading above
+            with app.app_context():  # Ensure we have an application context for DB operations
+                 db.session.add(reading)
+                 db.session.commit()
+
         except (json.JSONDecodeError, ValueError) as e:  # Handle invalid JSON
             print(f"Error parsing MQTT message: {e}")
             return  # Skip this message, continue listening
