@@ -28,7 +28,6 @@ export MQTT_TOPIC=sensors/air_quality
 
 
 # MQTT Publisher Class: This is the publisher part of the server 
-# What it should be - one flat class
 class MQTTPublisher:
     def __init__(self):
         self.broker = os.environ["MQTT_BROKER"] # Get broker URL from environment variable. Left for security reasons. 
@@ -56,6 +55,7 @@ class MQTTPublisher:
             print("Published:", payload) # Log the published payload for debugging
         except Exception as e:
             print(f"Publish failed: {e}") # Log any exceptions that occur during publishing for debugging purposes
+
 # Base Sensor Class
 class Sensor:
     """Base class for all sensors."""
@@ -79,32 +79,32 @@ def get_overall_status(issues: dict) -> list[str]:  # Type hints
 class SGP30Sensor(Sensor):
     """TVOC and CO2 sensor using I2C communication."""
     
-    i2c = busio.I2C(board.SCL, board.SDA)
+    i2c = busio.I2C(board.SCL, board.SDA) # Initialise I2C bus for SGP30 sensor. SCL and SDA pins are used for communication.
 
     # Wait for I2C to be ready
-    while not i2c.try_lock():
+    while not i2c.try_lock(): # Attempt to acquire the I2C lock. This is necessary to ensure that the bus is not being used by another process or thread. If the lock cannot be acquired, it will keep trying until it succeeds. This is important for reliable communication with the SGP30 sensor, as it ensures that the I2C bus is available before attempting to read data from the sensor.
         pass
 
-    print("I2C scan:", i2c.scan())
+    print("I2C scan:", i2c.scan()) 
     i2c.unlock()
 
     # Give sensor time to stabilise
     time.sleep(5)
 
-    sensor = adafruit_sgp30.Adafruit_SGP30(i2c)
-    sensor.iaq_init()
+    sensor = adafruit_sgp30.Adafruit_SGP30(i2c) # Create an instance of the SGP30 sensor using the I2C bus. This allows us to communicate with the sensor and read data from it. 
+    sensor.iaq_init() # Initialize the Indoor Air Quality (IAQ) algorithm on the SGP30 sensor. This is necessary to start measuring TVOC and CO2 levels accurately. The IAQ algorithm processes the raw sensor data to provide meaningful air quality readings.
 
     print("SGP30 initialised")
 
     def read(self):
         if self.sensor is None:
-            return {"tvoc_i2c": None, "co2": None}
+            return {"tvoc_i2c": None, "co2": None} 
 
         try:
             self.sensor.iaq_measure()   
 
             return {
-                "tvoc_i2c": self.sensor.TVOC,
+                "tvoc_i2c": self.sensor.TVOC, 
                 "co2": self.sensor.eCO2
             }
         except Exception as e:
@@ -133,7 +133,7 @@ class MQ7Sensor(Sensor):
     """Carbon Monoxide Sensor (Digital Output)."""
 
     def __init__(self):
-        self.sensor = DigitalInputDevice(23, pull_up=False) # GPIO pin 23 
+        self.sensor = DigitalInputDevice(23, pull_up= False) # GPIO pin 23 
 
     def read(self) -> dict[str, bool]:  # Type hint for return type
         """Read CO sensor status. Returns dict with 'co' key (True if gas detected)."""
@@ -230,6 +230,11 @@ if __name__ == "__main__":
 
         # Add sensors to the manager. Other sensors removed for sole purpose of demo of IOT functionality.
         manager.add_sensor(SGP30Sensor()) # TVOC and CO2 sensor using I2C
+        
+        # Commented out lines but left them here 
+        # manager.add_sensor(DHT22Sensor())
+        # manager.add_sensor(MQ7Sensor())
+        
 
         air_sensor = AirSensor() # Air quality evaluation logic
         previous_issues = {} # Track previous issues to avoid redundant alerts 
@@ -259,7 +264,7 @@ if __name__ == "__main__":
             #Send to MQTT 
             mqtt_client.publish(payload) 
 
-            # Local alert (optional)
+            # Local alert 
             if issues != previous_issues:
                 if issues:
                     print("Air Quality Issues Detected:")
