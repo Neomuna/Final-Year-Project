@@ -33,7 +33,11 @@ import json
 import os
 from typing import Tuple, Any, Dict, Optional
 
+
 app = Flask(__name__) # Initialise Flask app
+
+
+latest_data = {} 
 
 
 #  Database Config - Using environment variables for security
@@ -363,6 +367,12 @@ def latest_alert(): # Get latest alert from database
 def dashboard_sensors(): # View sensor readings dashboard
     readings = SensorReading.query.order_by(SensorReading.timestamp.desc()).limit(50).all() # Get latest 50 sensor readings
     return render_template("sensor_dashboard.html", readings=readings) # Render sensor dashboard template
+
+@app.route("/") # Home route to view latest sensor readings
+def index():
+    readings = SensorReading.query.order_by(SensorReading.id.desc()).limit(10).all() # Get latest 10 sensor readings
+    return render_template("index.html", readings=readings)
+
 
 # Run the program
 if __name__ == "__main__":
