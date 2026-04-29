@@ -19,7 +19,7 @@
 # Run the following commands in terminal to set MQTT environment variables before running the program:
 """
 export MQTT_BROKER=192.168.1.10
-export MQTT_PORT=1883
+export MQTT_PORT=8883
 export MQTT_TOPIC=sensors/air_quality
 """ 
 
@@ -50,11 +50,11 @@ db = SQLAlchemy(app) # Initialise SQLAlchemy
 
 # MQTT Listener to receive data from sensors and save to database
 def mqtt_listener():
-    broker = "My number url goes here" # HiveMQ Cloud broker
-    port = 8883
-    topic = "sensors/air_quality"
-
-    def on_connect(client, userdata, flags, rc, properties=None):
+    broker = os.environ["MQTT_BROKER"]
+    port = int(os.environ.get("MQTT_PORT", 8883))
+    topic = os.environ.get("MQTT_TOPIC", "sensors/air_quality")
+    
+    def on_connect(client, userdata, flags, rc, properties= None):
         # Check connection status code
         if rc == 0:
             print("Connected to MQTT Broker")
@@ -62,64 +62,41 @@ def mqtt_listener():
         else:
             print(f"MQTT connection failed with code {rc}")  # Log connection errors
 
-    def on_message(client, userdata, msg):
-        try:  # Wrap payload parsing to prevent thread crashes
-            data = json.loads(msg.payload.decode())
-            print("Received via MQTT:", data)
+    def on_message(client, userdata, msg): # Handle incoming MQTT messages
+        try:
+            data = json.loads(msg.payload.decode()) # Decode JSON payload
+            print("Received via MQTT:", data) # Log received data for debugging
 
-            # Convert payload to DB model
-            reading = SensorReading(
-                Pi_ID=data.get("Pi_ID"),
-                Temperature=data.get("Temperature"),
-                Humidity=data.get("Humidity"),
-                CO2_reading=data.get("CO2_reading"),
-                CO_Reading=data.get("CO_Reading"),
-                TVOC=data.get("TVOC"),
-                Air_Quality_Status=data.get("Air_Quality_Status"),
-            )
+            with app.app_context(): # Ensure we have application context to access database
 
-
-            # Leaving this in case of changes later 
-            """
-            # Save reading
-            db.session.add(reading)
-            """
-            
-            # Alerts
-            if data.get("Air_Quality_Status") in ["POOR", "CRITICAL"]:
-                alert = Alerts(
+                reading = SensorReading(
                     Pi_ID=data.get("Pi_ID"),
-                    alert_type="AIR_QUALITY",  # Added alert type
-                    value=data.get("CO2_reading") or data.get("CO_Reading") or data.get("TVOC"),  # The problematic value
-                    threshold=1000 if data.get("CO2_reading") else (1 if data.get("CO_Reading") else 300),  # Appropriate threshold
-                    message=f"Air quality {data.get('Air_Quality_Status')}: {data.get('issues')}"  # Updated to match SQL column
+                    Temperature=data.get("Temperature"),
+                    Humidity=data.get("Humidity"),
+                    CO2_reading=data.get("CO2_reading"),
+                    CO_Reading=data.get("CO_Reading"),
+                    TVOC=data.get("TVOC"),
+                    Air_Quality_Status=data.get("Air_Quality_Status"),
                 )
-                db.session.add(alert)
 
-                # Save both reading and alert in a single transaction. From Save reading above
-            with app.app_context():  # Ensure we have an application context for DB operations
-                 db.session.add(reading)
-                 db.session.commit()
+                db.session.add(reading)
 
-        except (json.JSONDecodeError, ValueError) as e:  # Handle invalid JSON
-            print(f"Error parsing MQTT message: {e}")
-            return  # Skip this message, continue listening
-        except Exception as e:  # Catch database errors too
+                if data.get("Air_Quality_Status") in ["POOR", "CRITICAL"]: # Auto-generate alert for poor air quality
+                    alert = Alerts( # Create new alert object
+                        Pi_ID=data.get("Pi_ID"),
+                        alert_type="AIR_QUALITY",
+                        value=data.get("CO2_reading") or data.get("CO_Reading") or data.get("TVOC"),
+                        threshold=1000,
+                        message=f"Air quality {data.get('Air_Quality_Status')}: {data.get('issues')}"
+                    )
+                    db.session.add(alert) # Add alert to session
+
+                db.session.commit() # Commit session to database
+
+        except Exception as e: # Catch any errors during message processing and database operations
             print(f"Error processing sensor data: {e}")
-            db.session.rollback()  # Rollback failed transaction to prevent locked state
-
-    client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
-    client.username_pw_set("MyUsername", "MyPassword")  # Set MQTT credentials
-    client.tls_set()
-    client.on_connect = on_connect
-    client.on_message = on_message
-
-    try:
-        client.connect(broker, port, 60)
-        client.loop_forever()
-    except Exception as e:
-        print(f"MQTT connection error: {e}")
-
+            with app.app_context():
+                db.session.rollback()
 
 
 # Added home route for testing due to issues with Flask server starting
@@ -279,7 +256,7 @@ def upload_sensor():
     if data.get("Air_Quality_Status") in ["POOR", "CRITICAL"]:
         alert = Alerts(
         Pi_ID=data.get("Pi_ID"),
-        Message_Alert=f"Air quality {data.get('Air_Quality_Status')}: {data.get('Issues')}"
+        message=f"Air quality {data.get('Air_Quality_Status')}: {data.get('Issues')}"
     )
     save(alert)
     err = save(reading)       # Call save, catch any error it returns
@@ -344,7 +321,7 @@ def upload_pi(): # Upload Raspberry Pi info to database
 
 @app.get("/api/latest/pi") # Route to get latest Raspberry Pi info
 def latest_pi(): # Get latest Raspberry Pi info from database
-    rpi = Raspberry_Pi.query.order_by(Raspberry_Pi.Last_Used_Timestamp.desc()).first() # Query latest Raspberry Pi
+    rpi = Raspberry_Pi.query.order_by(Raspberry_Pi.Last_used.desc()).first() # Query latest Raspberry Pi
     if not rpi: # If no Raspberry Pi found
         return jsonify({"error": "No Raspberry Pis found"}), 404 # Return error response
 
@@ -352,7 +329,7 @@ def latest_pi(): # Get latest Raspberry Pi info from database
         "Pi_ID": rpi.Pi_ID, # Unique ID for Raspberry Pi
         "Location_ID": rpi.Location_ID, # Foreign key to Location
         "IP_Address": rpi.IP_Address, # IP Address of the Pi
-        "Last_Used_Timestamp": rpi.Last_Used_Timestamp.isoformat() # Last used timestamp
+        "Last_Used": rpi.Last_used.isoformat() # Last used timestamp
     })
 
 # Route for Alerts 
