@@ -96,17 +96,6 @@ def mqtt_listener(): # MQTT listener function to receive sensor data
     client.connect(broker, port, 60) # Connect to MQTT broker with specified host, port, and keepalive interval
     client.loop_forever()
 
-
-# Added home route for testing due to issues with Flask server starting
-@app.get("/") # Home route
-def home(): # Home route
-    try:
-        readings = SensorReading.query.order_by(SensorReading.timestamp.desc()).limit(50).all() # Get latest 50 sensor readings
-    except Exception as e:
-        readings = [] # Return empty list if database connection fails
-    return render_template("index.html", readings=readings) # Render sensor dashboard template   
-
-
 # Database helper to save an object
 def save(obj: Any) -> Optional[Tuple[Dict, int]]:  # Type hints for parameters and return
     """Save object to database. Returns error tuple if failure, None if success."""
@@ -364,11 +353,14 @@ def dashboard_sensors(): # View sensor readings dashboard
 
 @app.route("/") # Home route to view latest sensor readings
 def index():
-    readings = SensorReading.query.order_by(SensorReading.Measurement_ID.desc()).limit(10).all() # Get latest 10 sensor readings
+    try:
+        readings = SensorReading.query.order_by(SensorReading.Measurement_ID.desc()).limit(10).all() # Get latest 10 sensor readings
+
+    except Exception as e:
+        print("DB error:", e)
+        readings = [] # If error occurs, return empty list to template
     return render_template("index.html", readings=readings)
 
-
-# Run the program
 if __name__ == "__main__":
     try:
         # Start MQTT listener in separate thread
