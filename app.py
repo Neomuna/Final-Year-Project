@@ -52,28 +52,25 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False  # To suppress warning
 db = SQLAlchemy(app) # Initialise SQLAlchemy
 
 
-# MQTT Listener to receive data from sensors and save to database
-def mqtt_listener():
-    broker = os.environ["MQTT_BROKER"]
+def mqtt_listener(): # MQTT listener function to receive sensor data
+    broker = os.environ["MQTT_BROKER"] 
     port = int(os.environ.get("MQTT_PORT", 8883))
     topic = os.environ.get("MQTT_TOPIC", "sensors/air_quality")
-    
-    def on_connect(client, userdata, flags, rc, properties= None):
-        # Check connection status code
-        if rc == 0:
-            print("Connected to MQTT Broker")
-            client.subscribe(topic)
-        else:
-            print(f"MQTT connection failed with code {rc}")  # Log connection errors
 
-    def on_message(client, userdata, msg): # Handle incoming MQTT messages
+    client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2) # Create MQTT client with callback API version 2 for better error handling and features
+
+    def on_connect(client, userdata, flags, rc, properties=None): # MQTT on_connect callback with properties parameter for MQTT v5 support
+        if rc == 0: # Connection successful
+            print("Connected to MQTT Broker") 
+            client.subscribe(topic)
+
+    def on_message(client, userdata, msg): # MQTT on_message callback to process incoming messages
         try:
             data = json.loads(msg.payload.decode()) # Decode JSON payload
-            print("Received via MQTT:", data) # Log received data for debugging
+            print("Received via MQTT:", data)
 
-            with app.app_context(): # Ensure we have application context to access database
-
-                reading = SensorReading(
+            with app.app_context(): # Use app context to interact with database
+                reading = SensorReading( # Create new SensorReading object with data from MQTT message
                     Pi_ID=data.get("Pi_ID"),
                     Temperature=data.get("Temperature"),
                     Humidity=data.get("Humidity"),
@@ -84,23 +81,20 @@ def mqtt_listener():
                 )
 
                 db.session.add(reading)
+                db.session.commit()
 
-                if data.get("Air_Quality_Status") in ["POOR", "CRITICAL"]: # Auto-generate alert for poor air quality
-                    alert = Alerts( # Create new alert object
-                        Pi_ID=data.get("Pi_ID"),
-                        alert_type="AIR_QUALITY",
-                        value=data.get("CO2_reading") or data.get("CO_Reading") or data.get("TVOC"),
-                        threshold=1000,
-                        message=f"Air quality {data.get('Air_Quality_Status')}: {data.get('issues')}"
-                    )
-                    db.session.add(alert) # Add alert to session
+                print("Saved to DB!") 
 
-                db.session.commit() # Commit session to database
-
-        except Exception as e: # Catch any errors during message processing and database operations
-            print(f"Error processing sensor data: {e}")
+        except Exception as e:
+            print(f"Error: {e}")
             with app.app_context():
                 db.session.rollback()
+
+    client.on_connect = on_connect # Set MQTT on_connect callback
+    client.on_message = on_message # Set MQTT on_message callback
+
+    client.connect(broker, port, 60) # Connect to MQTT broker with specified host, port, and keepalive interval
+    client.loop_forever()
 
 
 # Added home route for testing due to issues with Flask server starting
@@ -370,7 +364,7 @@ def dashboard_sensors(): # View sensor readings dashboard
 
 @app.route("/") # Home route to view latest sensor readings
 def index():
-    readings = SensorReading.query.order_by(SensorReading.id.desc()).limit(10).all() # Get latest 10 sensor readings
+    readings = SensorReading.query.order_by(SensorReading.Measurement_ID.desc()).limit(10).all() # Get latest 10 sensor readings
     return render_template("index.html", readings=readings)
 
 
